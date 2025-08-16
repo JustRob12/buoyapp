@@ -18,6 +18,15 @@ app/
 │   └── index.ts        # Screen exports
 ├── navigation/         # Navigation configuration
 │   └── TabNavigator.tsx
+├── services/           # API services
+│   └── buoyService.ts  # Buoy data fetching
+├── images/             # Buoy images
+│   ├── buoy1.png       # Buoy 1 image
+│   ├── buoy2.png       # Buoy 2 image
+│   ├── buoy3.png       # Buoy 3 image
+│   ├── buoy4.png       # Buoy 4 image
+│   ├── buoy5.png       # Buoy 5 image
+│   └── README.md       # Image instructions
 ├── assets/            # Images and static assets
 ├── App.tsx           # Main app component
 └── package.json      # Dependencies
