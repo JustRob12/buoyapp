@@ -60,7 +60,7 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
   // Calculate center of map
   const getMapCenter = () => {
     if (coordinates.length === 0) {
-      return { latitude: 14.5995, longitude: 120.9842 }; // Default to Manila
+      return { latitude: 12.8797, longitude: 121.7740 }; // Default to Philippines center
     }
 
     const avgLat = coordinates.reduce((sum, coord) => sum + coord.latitude, 0) / coordinates.length;
@@ -128,8 +128,8 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
         style={styles.map}
         initialRegion={{
           ...getMapCenter(),
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 8.0, // Wider view to show more of Philippines
+          longitudeDelta: 8.0, // Wider view to show more of Philippines
         }}
         showsUserLocation={true}
         showsMyLocationButton={true}

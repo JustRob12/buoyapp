@@ -1,12 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { BuoyData } from '../services/buoyService';
+import BuoyEchoAnimation from './BuoyEchoAnimation';
 
 interface BuoyCardProps {
   data: BuoyData;
 }
 
 const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsScreenFocused(true);
+      return () => {
+        setIsScreenFocused(false);
+      };
+    }, [])
+  );
+
   const formatDateTime = (date: string, time: string) => {
     const dateObj = new Date(`${date} ${time}`);
     return {
@@ -63,6 +76,13 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
       <View style={styles.buoySection}>
         <View style={styles.buoyContainer}>
           <View style={styles.buoyImageContainer}>
+            <BuoyEchoAnimation 
+              size={120}
+              color="#0ea5e9"
+              duration={2000}
+              delay={0}
+              isActive={isScreenFocused}
+            />
             <Image
               source={getBuoyImage(data.Buoy)}
               style={styles.buoyImage}
