@@ -47,6 +47,10 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
       strokeWidth: '2',
       stroke: '#0ea5e9',
     },
+    // Keep Y-axis labels visible
+    propsForLabels: {
+      fontSize: 12,
+    },
   };
 
   const pHChartData = {
@@ -231,8 +235,8 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Chart Container */}
-      <View style={styles.chartContainer}>
+      {/* Chart Section */}
+      <View style={styles.chartSection}>
         <Text style={styles.chartTitle}>{getChartTitle()}</Text>
         {renderChart()}
       </View>
@@ -334,19 +338,8 @@ const styles = StyleSheet.create({
     color: '#1e3a8a',
     marginLeft: 12,
   },
-  chartContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
+  chartSection: {
     marginBottom: 20,
-    shadowColor: '#0ea5e9',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   horizontalScrollContent: {
     paddingRight: 20,

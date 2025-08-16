@@ -10,48 +10,36 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
   const formatDateTime = (date: string, time: string) => {
     const dateObj = new Date(`${date} ${time}`);
     return {
-      date: dateObj.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      date: dateObj.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       }),
-      time: dateObj.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
+      time: dateObj.toLocaleTimeString('en-US', {
+        hour: '2-digit',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       })
     };
   };
 
   const getBuoyImage = (buoyName: string) => {
-    // Clean and extract buoy number from the buoy name
-    const cleanBuoyName = buoyName.trim(); // Remove extra spaces
-    console.log('Original buoy name:', buoyName);
-    console.log('Clean buoy name:', cleanBuoyName);
-    
-    // Extract buoy number from the buoy name (e.g., "Buoy 2" -> "2")
+    const cleanBuoyName = buoyName.trim();
     const buoyNumber = cleanBuoyName.replace('Buoy ', '').trim();
-    console.log('Extracted buoy number:', buoyNumber);
-    
+
     switch (buoyNumber) {
       case '1':
-        console.log('Loading buoy1.png');
         return require('../images/buoy1.png');
       case '2':
-        console.log('Loading buoy2.png');
         return require('../images/buoy2.png');
       case '3':
-        console.log('Loading buoy3.png');
         return require('../images/buoy3.png');
       case '4':
-        console.log('Loading buoy4.png');
         return require('../images/buoy4.png');
       case '5':
-        console.log('Loading buoy5.png');
         return require('../images/buoy5.png');
       default:
-        console.log('Default fallback to buoy1.png');
-        return require('../images/buoy1.png'); // Default fallback
+        return require('../images/buoy1.png');
     }
   };
 
@@ -59,41 +47,81 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
 
   return (
     <View style={styles.container}>
-      {/* Date and Time at the top */}
-      <View style={styles.dateTimeContainer}>
-        <Text style={styles.dateText}>{date}</Text>
-        <Text style={styles.timeText}>{time}</Text>
-      </View>
-
-      {/* Big Center Buoy */}
-      <View style={styles.buoyContainer}>
-        <View style={styles.buoyCircle}>
-          <Image 
-            source={getBuoyImage(data.Buoy)}
-            style={styles.buoyImage}
-            resizeMode="contain"
-            onError={(error) => console.log('Image loading error:', error)}
-            onLoad={() => console.log('Image loaded successfully')}
-          />
-          <Text style={styles.buoyText}>{data.Buoy}</Text>
+      {/* Header Section */}
+      <View style={styles.headerSection}>
+        <View style={styles.statusIndicator}>
+          <View style={styles.statusDot} />
+          <Text style={styles.statusText}>Live Data</Text>
+        </View>
+        <View style={styles.dateTimeContainer}>
+          <Text style={styles.dateText}>{date}</Text>
+          <Text style={styles.timeText}>{time}</Text>
         </View>
       </View>
 
-      {/* Sensor Data in vertical layout */}
-      <View style={styles.sensorContainer}>
-        <View style={styles.sensorItem}>
-          <Text style={styles.sensorLabel}>pH</Text>
+      {/* Main Buoy Section */}
+      <View style={styles.buoySection}>
+        <View style={styles.buoyContainer}>
+          <View style={styles.buoyImageContainer}>
+            <Image
+              source={getBuoyImage(data.Buoy)}
+              style={styles.buoyImage}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.buoyLabel}>{data.Buoy}</Text>
+          <Text style={styles.buoySubtitle}>Active Sensor</Text>
+        </View>
+      </View>
+
+      {/* Sensor Data Grid */}
+      <View style={styles.sensorGrid}>
+        <View style={styles.sensorCard}>
+          <View style={styles.sensorHeader}>
+            <View style={[styles.sensorIcon, { backgroundColor: '#0ea5e9' }]}>
+              <Text style={styles.sensorIconText}>pH</Text>
+            </View>
+            <Text style={styles.sensorLabel}>pH Level</Text>
+          </View>
           <Text style={styles.sensorValue}>{data.pH}</Text>
+          <Text style={styles.sensorUnit}>pH Scale</Text>
         </View>
-        
-        <View style={styles.sensorItem}>
-          <Text style={styles.sensorLabel}>Temperature</Text>
-          <Text style={styles.sensorValue}>{data['Temp (°C)']}°C</Text>
+
+        <View style={styles.sensorCard}>
+          <View style={styles.sensorHeader}>
+            <View style={[styles.sensorIcon, { backgroundColor: '#ef4444' }]}>
+              <Text style={styles.sensorIconText}>°C</Text>
+            </View>
+            <Text style={styles.sensorLabel}>Temperature</Text>
+          </View>
+          <Text style={styles.sensorValue}>{data['Temp (°C)']}</Text>
+          <Text style={styles.sensorUnit}>Celsius</Text>
         </View>
-        
-        <View style={styles.sensorItem}>
-          <Text style={styles.sensorLabel}>TDS</Text>
-          <Text style={styles.sensorValue}>{data['TDS (ppm)']} ppm</Text>
+
+        <View style={styles.sensorCard}>
+          <View style={styles.sensorHeader}>
+            <View style={[styles.sensorIcon, { backgroundColor: '#22c55e' }]}>
+              <Text style={styles.sensorIconText}>TDS</Text>
+            </View>
+            <Text style={styles.sensorLabel}>TDS</Text>
+          </View>
+          <Text style={styles.sensorValue}>{data['TDS (ppm)']}</Text>
+          <Text style={styles.sensorUnit}>ppm</Text>
+        </View>
+      </View>
+
+      {/* Location Info */}
+      <View style={styles.locationSection}>
+        <Text style={styles.locationTitle}>Location</Text>
+        <View style={styles.locationData}>
+          <View style={styles.locationItem}>
+            <Text style={styles.locationLabel}>Latitude</Text>
+            <Text style={styles.locationValue}>{data.Latitude}</Text>
+          </View>
+          <View style={styles.locationItem}>
+            <Text style={styles.locationLabel}>Longitude</Text>
+            <Text style={styles.locationValue}>{data.Longitude}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -102,84 +130,161 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
     paddingHorizontal: 20,
   },
-  dateTimeContainer: {
+  headerSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 24,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f9ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10b981',
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0ea5e9',
+  },
+  dateTimeContainer: {
+    alignItems: 'flex-end',
   },
   dateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e3a8a',
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 2,
   },
   timeText: {
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '500',
     color: '#64748b',
+  },
+  buoySection: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   buoyContainer: {
     alignItems: 'center',
-    marginBottom: 40,
   },
-  buoyCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: '#0ea5e9',
+  buoyImageContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f0f9ff',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 16,
     shadowColor: '#0ea5e9',
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 4,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   buoyImage: {
-    width: 80,
-    height: 80,
+    width: 70,
+    height: 70,
+  },
+  buoyLabel: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  buoySubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  sensorGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  sensorCard: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  sensorHeader: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sensorIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
-  buoyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  sensorIconText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#ffffff',
   },
-  sensorContainer: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  sensorItem: {
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    width: '80%',
-    shadowColor: '#0ea5e9',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   sensorLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#64748b',
-    marginBottom: 8,
+    textAlign: 'center',
   },
   sensorValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  sensorUnit: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  locationSection: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 20,
+  },
+  locationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 16,
+  },
+  locationData: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  locationItem: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  locationValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1e293b',
   },
 });
 

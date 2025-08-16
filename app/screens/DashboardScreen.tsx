@@ -57,52 +57,61 @@ const DashboardScreen = () => {
   return (
     <View style={styles.container}>
       <Header title="AquaNet" />
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>Latest Buoy Data</Text>
-            <TouchableOpacity 
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Dashboard</Text>
+              <Text style={styles.subtitle}>Real-time buoy monitoring</Text>
+            </View>
+            <TouchableOpacity
               style={styles.refreshButton}
               onPress={onRefreshButtonPress}
               disabled={loading}
             >
-              <Ionicons 
-                name="refresh" 
-                size={24} 
-                color={loading ? "#94a3b8" : "#0ea5e9"} 
+              <Ionicons
+                name="refresh"
+                size={24}
+                color={loading ? "#94a3b8" : "#0ea5e9"}
               />
             </TouchableOpacity>
           </View>
-          
+
           {error ? (
             <View style={styles.errorContainer}>
-              <Ionicons name="warning" size={48} color="#ef4444" />
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity 
-                style={styles.retryButton}
-                onPress={onRefreshButtonPress}
-              >
-                <Text style={styles.retryButtonText}>Try Again</Text>
-              </TouchableOpacity>
+              <View style={styles.errorCard}>
+                <Ionicons name="warning" size={48} color="#ef4444" />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={onRefreshButtonPress}
+                >
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : latestData ? (
             <BuoyCard data={latestData} />
           ) : (
             <View style={styles.noDataContainer}>
-              <Ionicons name="water" size={48} color="#64748b" />
-              <Text style={styles.noDataText}>No buoy data available</Text>
-              <TouchableOpacity 
-                style={styles.retryButton}
-                onPress={onRefreshButtonPress}
-              >
-                <Text style={styles.retryButtonText}>Refresh</Text>
-              </TouchableOpacity>
+              <View style={styles.noDataCard}>
+                <Ionicons name="water" size={48} color="#64748b" />
+                <Text style={styles.noDataText}>No buoy data available</Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={onRefreshButtonPress}
+                >
+                  <Text style={styles.retryButtonText}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -114,7 +123,7 @@ const DashboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fbff',
+    backgroundColor: '#f8fafc',
   },
   scrollView: {
     flex: 1,
@@ -126,29 +135,41 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  titleContainer: {
+  headerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     marginTop: 20,
   },
+  titleContainer: {
+    flex: 1,
+  },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#64748b',
   },
   refreshButton: {
-    padding: 8,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#0ea5e9',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 3,
   },
   loadingContainer: {
@@ -160,75 +181,104 @@ const styles = StyleSheet.create({
   loadingCard: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    padding: 40,
+    padding: 32,
     alignItems: 'center',
     shadowColor: '#0ea5e9',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    minWidth: 280,
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
   },
   loadingText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e3a8a',
-    marginTop: 20,
-    textAlign: 'center',
+    fontWeight: '700',
+    color: '#1e293b',
+    marginTop: 16,
+    marginBottom: 8,
   },
   loadingSubtext: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#64748b',
-    marginTop: 8,
     textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  errorCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#ef4444',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 12,
   },
   errorText: {
     fontSize: 16,
-    color: '#ef4444',
+    fontWeight: '600',
+    color: '#1e293b',
     textAlign: 'center',
-    paddingHorizontal: 20,
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   noDataContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  noDataCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#0ea5e9',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
   },
   noDataText: {
     fontSize: 16,
+    fontWeight: '600',
     color: '#64748b',
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   retryButton: {
     backgroundColor: '#0ea5e9',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 12,
     shadowColor: '#0ea5e9',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 6,
   },
   retryButtonText: {
-    color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#ffffff',
   },
 });
 
