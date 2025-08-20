@@ -6,6 +6,9 @@ import BuoyCard from '../components/BuoyCard';
 import BuoyCardList from '../components/BuoyCardList';
 import BuoyDropdown from '../components/BuoyDropdown';
 import { getLatestBuoyData, getLatestBuoyDataForMultipleBuoys, getLatestBuoyDataForSpecificBuoy, getAvailableBuoyNumbers, BuoyData } from '../services/buoyService';
+import { settingsService, loadSettings } from '../services/settingsService';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { sendNewDataNotification } from '../services/notificationService';
 
 const DashboardScreen = () => {
   const [latestData, setLatestData] = useState<BuoyData | null>(null);
@@ -22,9 +25,17 @@ const DashboardScreen = () => {
       const buoyNumbers = await getAvailableBuoyNumbers();
       setAvailableBuoyNumbers(buoyNumbers);
       
-      // Set the first available buoy as default if none selected
-      if (buoyNumbers.length > 0 && !buoyNumbers.includes(selectedBuoyCount)) {
-        setSelectedBuoyCount(buoyNumbers[0]);
+      // Load settings and set default buoy selection
+      const settings = await loadSettings();
+      const defaultBuoy = settings.defaultBuoySelection;
+      
+      // Set the default buoy from settings, or first available if not found
+      if (buoyNumbers.length > 0) {
+        if (buoyNumbers.includes(defaultBuoy)) {
+          setSelectedBuoyCount(defaultBuoy);
+        } else {
+          setSelectedBuoyCount(buoyNumbers[0]);
+        }
       }
     } catch (err) {
       console.error('Error fetching available buoy numbers:', err);
@@ -42,8 +53,19 @@ const DashboardScreen = () => {
       const selectedBuoyData = await getLatestBuoyDataForSpecificBuoy(selectedBuoyCount);
       
       if (selectedBuoyData) {
+        // Check if this is new data (not initial load)
+        const isNewData = latestData && (
+          selectedBuoyData.Date !== latestData.Date || 
+          selectedBuoyData.Time !== latestData.Time
+        );
+        
         setLatestData(selectedBuoyData);
         setMultipleBuoyData([]);
+        
+        // Send notification for new data
+        if (isNewData) {
+          await sendNewDataNotification(selectedBuoyData);
+        }
       } else {
         setLatestData(null);
         setMultipleBuoyData([]);
@@ -69,6 +91,12 @@ const DashboardScreen = () => {
     setLoading(true);
     await fetchLatestData(false);
   };
+
+  // Auto-refresh functionality
+  const { isAutoRefreshEnabled, refreshInterval } = useAutoRefresh({
+    onRefresh: onRefresh,
+    enabled: true,
+  });
 
   useEffect(() => {
     fetchAvailableBuoyNumbers();
@@ -112,6 +140,14 @@ const DashboardScreen = () => {
             <View style={styles.titleContainer}>
               <Text style={styles.title}>Dashboard</Text>
               <Text style={styles.subtitle}>Real-time buoy monitoring</Text>
+              {isAutoRefreshEnabled && (
+                <View style={styles.autoRefreshIndicator}>
+                  <Ionicons name="sync" size={14} color="#10b981" />
+                  <Text style={styles.autoRefreshText}>
+                    Auto-refresh: {refreshInterval < 60 ? `${refreshInterval}s` : `${refreshInterval / 60}m`}
+                  </Text>
+                </View>
+              )}
             </View>
             <TouchableOpacity
               style={styles.refreshButton}
@@ -218,6 +254,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#64748b',
+  },
+  autoRefreshIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  autoRefreshText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#10b981',
+    marginLeft: 4,
   },
   buoySelectionSection: {
     marginBottom: 24,

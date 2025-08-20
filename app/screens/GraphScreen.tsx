@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView }
 import Header from '../components/Header';
 import BuoyGraph from '../components/BuoyGraph';
 import { getLatestBuoyDataForGraph, BuoyData } from '../services/buoyService';
+import { settingsService, loadSettings } from '../services/settingsService';
+import { sendMultipleBuoysNotification } from '../services/notificationService';
 
 const GraphScreen = () => {
   const [graphData, setGraphData] = useState<BuoyData[]>([]);
@@ -13,8 +15,23 @@ const GraphScreen = () => {
   const fetchGraphData = async () => {
     try {
       setError(null);
-      const data = await getLatestBuoyDataForGraph(20);
+      const settings = await loadSettings();
+      const dataPoints = settings.dataRetentionPoints;
+      const data = await getLatestBuoyDataForGraph(dataPoints);
+      
+      // Check if this is new data
+      const isNewData = graphData.length > 0 && (
+        data.length !== graphData.length || 
+        data[0]?.Date !== graphData[0]?.Date ||
+        data[0]?.Time !== graphData[0]?.Time
+      );
+      
       setGraphData(data);
+      
+      // Send notification for new graph data
+      if (isNewData && data.length > 0) {
+        await sendMultipleBuoysNotification(data);
+      }
     } catch (err) {
       setError('Failed to fetch graph data. Please try again.');
       console.error('Error fetching graph data:', err);
