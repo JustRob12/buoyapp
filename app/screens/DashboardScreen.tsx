@@ -3,41 +3,82 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import BuoyCard from '../components/BuoyCard';
-import { getLatestBuoyData, BuoyData } from '../services/buoyService';
+import BuoyCardList from '../components/BuoyCardList';
+import BuoyDropdown from '../components/BuoyDropdown';
+import { getLatestBuoyData, getLatestBuoyDataForMultipleBuoys, getLatestBuoyDataForSpecificBuoy, getAvailableBuoyNumbers, BuoyData } from '../services/buoyService';
 
 const DashboardScreen = () => {
   const [latestData, setLatestData] = useState<BuoyData | null>(null);
+  const [multipleBuoyData, setMultipleBuoyData] = useState<BuoyData[]>([]);
+  const [selectedBuoyCount, setSelectedBuoyCount] = useState<number>(1);
+  const [availableBuoyNumbers, setAvailableBuoyNumbers] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+  const [buoyLoading, setBuoyLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLatestData = async () => {
+  const fetchAvailableBuoyNumbers = async () => {
+    try {
+      const buoyNumbers = await getAvailableBuoyNumbers();
+      setAvailableBuoyNumbers(buoyNumbers);
+      
+      // Set the first available buoy as default if none selected
+      if (buoyNumbers.length > 0 && !buoyNumbers.includes(selectedBuoyCount)) {
+        setSelectedBuoyCount(buoyNumbers[0]);
+      }
+    } catch (err) {
+      console.error('Error fetching available buoy numbers:', err);
+    }
+  };
+
+  const fetchLatestData = async (isBuoyChange: boolean = false) => {
     try {
       setError(null);
-      const data = await getLatestBuoyData();
-      setLatestData(data);
+      if (isBuoyChange) {
+        setBuoyLoading(true);
+      }
+      
+      // Get the latest data for the specific selected buoy
+      const selectedBuoyData = await getLatestBuoyDataForSpecificBuoy(selectedBuoyCount);
+      
+      if (selectedBuoyData) {
+        setLatestData(selectedBuoyData);
+        setMultipleBuoyData([]);
+      } else {
+        setLatestData(null);
+        setMultipleBuoyData([]);
+      }
     } catch (err) {
       setError('Failed to fetch buoy data. Please try again.');
       console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
+      if (isBuoyChange) {
+        setBuoyLoading(false);
+      }
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLatestData();
+    await fetchLatestData(false);
     setRefreshing(false);
   };
 
   const onRefreshButtonPress = async () => {
     setLoading(true);
-    await fetchLatestData();
+    await fetchLatestData(false);
   };
 
   useEffect(() => {
-    fetchLatestData();
+    fetchAvailableBuoyNumbers();
   }, []);
+
+  useEffect(() => {
+    if (availableBuoyNumbers.length > 0) {
+      fetchLatestData(true);
+    }
+  }, [selectedBuoyCount, availableBuoyNumbers]);
 
   if (loading) {
     return (
@@ -85,6 +126,20 @@ const DashboardScreen = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Buoy Selection Section */}
+          <View style={styles.buoySelectionSection}>
+            <Text style={styles.buoySelectionLabel}>Select Buoy to Display</Text>
+            <BuoyDropdown
+              selectedValue={selectedBuoyCount}
+              onValueChange={setSelectedBuoyCount}
+              options={availableBuoyNumbers}
+              placeholder="Select buoy to display"
+              loading={buoyLoading}
+            />
+          </View>
+          
+
+
           {error ? (
             <View style={styles.errorContainer}>
               <View style={styles.errorCard}>
@@ -96,6 +151,14 @@ const DashboardScreen = () => {
                 >
                   <Text style={styles.retryButtonText}>Try Again</Text>
                 </TouchableOpacity>
+              </View>
+            </View>
+          ) : buoyLoading ? (
+            <View style={styles.buoyLoadingContainer}>
+              <View style={styles.buoyLoadingCard}>
+                <ActivityIndicator size="large" color="#0ea5e9" />
+                <Text style={styles.buoyLoadingText}>Loading Buoy {selectedBuoyCount} data...</Text>
+                <Text style={styles.buoyLoadingSubtext}>Please wait while we fetch the latest readings</Text>
               </View>
             </View>
           ) : latestData ? (
@@ -156,6 +219,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#64748b',
   },
+  buoySelectionSection: {
+    marginBottom: 24,
+  },
+  buoySelectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 12,
+  },
+
   refreshButton: {
     width: 48,
     height: 48,
@@ -200,6 +273,40 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   loadingSubtext: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  buoyLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    minHeight: 300,
+  },
+  buoyLoadingCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#0ea5e9',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  buoyLoadingText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  buoyLoadingSubtext: {
     fontSize: 14,
     fontWeight: '500',
     color: '#64748b',

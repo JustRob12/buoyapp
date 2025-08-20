@@ -108,3 +108,161 @@ export const getLatestBuoyDataForGraph = async (count: number = 20): Promise<Buo
     return [];
   }
 };
+
+export const getAvailableBuoyNumbers = async (): Promise<number[]> => {
+  try {
+    const allData: BuoyData[] = [];
+    let page = 1;
+    
+    // Fetch data from multiple pages to get all available buoys
+    while (true) { // Fetch all available pages
+      const response = await fetchBuoyData(page);
+      allData.push(...response.data);
+      
+      if (response.data.length === 0) break; // No more data
+      page++;
+    }
+    
+    console.log('Total data fetched:', allData.length);
+    console.log('Unique buoy names:', [...new Set(allData.map(d => d.Buoy))]);
+    
+    // Extract unique buoy numbers
+    const buoyNumbers = new Set<number>();
+    
+    allData.forEach(data => {
+      const buoyName = data.Buoy.trim();
+      // Extract number from "Buoy X" format
+      const match = buoyName.match(/Buoy\s*(\d+)/i);
+      if (match) {
+        buoyNumbers.add(parseInt(match[1]));
+      }
+    });
+    
+    // Convert to array and sort
+    const result = Array.from(buoyNumbers).sort((a, b) => a - b);
+    console.log('Available buoy numbers found:', result);
+    console.log('Sample buoy names from data:', allData.slice(0, 5).map(d => d.Buoy));
+    return result;
+  } catch (error) {
+    console.error('Error fetching available buoy numbers:', error);
+    return [];
+  }
+};
+
+export const getLatestBuoyDataForMultipleBuoys = async (buoyCount: number = 1): Promise<BuoyData[]> => {
+  try {
+    const allData: BuoyData[] = [];
+    let page = 1;
+    
+    // Fetch data from multiple pages to get enough data for all buoys
+    while (allData.length < buoyCount * 10) { // Fetch more data to ensure we have latest for each buoy
+      const response = await fetchBuoyData(page);
+      allData.push(...response.data);
+      
+      if (response.data.length === 0) break; // No more data
+      page++;
+    }
+    
+    // Group data by buoy and get the latest entry for each
+    const buoyMap = new Map<string, BuoyData>();
+    
+    allData.forEach(data => {
+      const buoyName = data.Buoy;
+      if (!buoyMap.has(buoyName) || new Date(`${data.Date} ${data.Time}`) > new Date(`${buoyMap.get(buoyName)!.Date} ${buoyMap.get(buoyName)!.Time}`)) {
+        buoyMap.set(buoyName, data);
+      }
+    });
+    
+    // Convert map to array and sort by buoy name
+    const latestBuoyData = Array.from(buoyMap.values())
+      .sort((a, b) => a.Buoy.localeCompare(b.Buoy))
+      .slice(0, buoyCount);
+    
+    return latestBuoyData;
+  } catch (error) {
+    console.error('Error fetching latest buoy data for multiple buoys:', error);
+    return [];
+  }
+};
+
+export const getLatestBuoyDataForSpecificBuoy = async (buoyNumber: number): Promise<BuoyData | null> => {
+  try {
+    const allData: BuoyData[] = [];
+    let page = 1;
+    
+    // Fetch data from multiple pages to get enough data
+    while (true) { // Fetch all available pages to ensure we get the buoy data
+      const response = await fetchBuoyData(page);
+      allData.push(...response.data);
+      
+      if (response.data.length === 0) break; // No more data
+      page++;
+    }
+    
+    // Filter data for the specific buoy and get the latest entry
+    const buoyData = allData.filter(data => {
+      const buoyName = data.Buoy.trim();
+      const match = buoyName.match(/Buoy\s*(\d+)/i);
+      return match && parseInt(match[1]) === buoyNumber;
+    });
+    
+    console.log(`Looking for Buoy ${buoyNumber}, found ${buoyData.length} entries`);
+    if (buoyData.length > 0) {
+      console.log('Sample buoy data:', buoyData[0]);
+    }
+    
+    if (buoyData.length === 0) {
+      return null;
+    }
+    
+    // Get the latest entry for this buoy
+    const latestData = buoyData.reduce((latest, current) => {
+      const latestDate = new Date(`${latest.Date} ${latest.Time}`);
+      const currentDate = new Date(`${current.Date} ${current.Time}`);
+      return currentDate > latestDate ? current : latest;
+    });
+    
+    return latestData;
+  } catch (error) {
+    console.error('Error fetching latest buoy data for specific buoy:', error);
+    return null;
+  }
+};
+
+export const getAllBuoyData = async (): Promise<BuoyData[]> => {
+  try {
+    const allData: BuoyData[] = [];
+    let page = 1;
+    let hasMoreData = true;
+    
+    console.log('Starting to fetch all buoy data...');
+    
+    // Fetch all available pages
+    while (hasMoreData) { // Fetch all available data
+      const response = await fetchBuoyData(page);
+      
+      if (response.data.length === 0) {
+        hasMoreData = false;
+        console.log(`No more data found at page ${page}`);
+      } else {
+        allData.push(...response.data);
+        console.log(`Fetched ${response.data.length} records from page ${page}`);
+        page++;
+      }
+    }
+    
+    console.log(`Total data fetched: ${allData.length} records`);
+    
+    // Sort by date and time (newest first)
+    const sortedData = allData.sort((a, b) => {
+      const dateA = new Date(`${a.Date} ${a.Time}`);
+      const dateB = new Date(`${b.Date} ${b.Time}`);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    return sortedData;
+  } catch (error) {
+    console.error('Error fetching all buoy data:', error);
+    return [];
+  }
+};
