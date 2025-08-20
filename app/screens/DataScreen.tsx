@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import Header from '../components/Header';
 import DataTable from '../components/DataTable';
-import { fetchBuoyData, BuoyData } from '../services/buoyService';
+import { fetchBuoyData, getAllBuoyDataForCSV, BuoyData } from '../services/buoyService';
 
 const DataScreen = () => {
   const [data, setData] = useState<BuoyData[]>([]);
@@ -11,6 +14,7 @@ const DataScreen = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const fetchData = async (page: number = 1) => {
     try {
@@ -39,6 +43,60 @@ const DataScreen = () => {
     await fetchData(page);
   };
 
+  const downloadCSV = async () => {
+    try {
+      setDownloading(true);
+      
+      // Show confirmation dialog
+      Alert.alert(
+        'Download CSV',
+        'This will download all buoy data as a CSV file. This may take a moment.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Download', 
+            onPress: async () => {
+              try {
+                // Fetch all data and convert to CSV
+                const csvData = await getAllBuoyDataForCSV();
+                
+                // Create filename with timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const filename = `buoy_data_${timestamp}.csv`;
+                const fileUri = `${FileSystem.documentDirectory}${filename}`;
+                
+                // Write CSV file
+                await FileSystem.writeAsStringAsync(fileUri, csvData, {
+                  encoding: FileSystem.EncodingType.UTF8,
+                });
+                
+                // Share the file
+                if (await Sharing.isAvailableAsync()) {
+                  await Sharing.shareAsync(fileUri, {
+                    mimeType: 'text/csv',
+                    dialogTitle: 'Download Buoy Data CSV',
+                  });
+                } else {
+                  Alert.alert('Success', `CSV file saved as: ${filename}`);
+                }
+                
+              } catch (err) {
+                console.error('Error downloading CSV:', err);
+                Alert.alert('Error', 'Failed to download CSV file. Please try again.');
+              } finally {
+                setDownloading(false);
+              }
+            }
+          }
+        ]
+      );
+    } catch (err) {
+      console.error('Error in downloadCSV:', err);
+      Alert.alert('Error', 'Failed to start download. Please try again.');
+      setDownloading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData(1);
   }, []);
@@ -60,13 +118,31 @@ const DataScreen = () => {
       <Header title="AquaNet" />
       <View style={styles.content}>
         <View style={styles.headerSection}>
-          <Text style={styles.title}>Data</Text>
-          <Text style={styles.subtitle}>
-            Page {currentPage} of {totalPages} • {data.length} records per page
-          </Text>
-          <Text style={styles.pageInfo}>
-            Navigate through pages to view all {totalPages * 10} total records
-          </Text>
+          <View style={styles.titleRow}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Data</Text>
+              <Text style={styles.subtitle}>
+                Page {currentPage} of {totalPages} • {data.length} records per page
+              </Text>
+              <Text style={styles.pageInfo}>
+                Navigate through pages to view all {totalPages * 10} total records
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.downloadButton, downloading && styles.downloadButtonDisabled]}
+              onPress={downloadCSV}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Ionicons name="download-outline" size={20} color="#ffffff" />
+              )}
+              <Text style={styles.downloadButtonText}>
+                {downloading ? 'Downloading...' : 'Download CSV'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
         
         {error ? (
@@ -103,6 +179,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  titleContainer: {
+    flex: 1,
   },
   title: {
     fontSize: 28,
@@ -144,6 +228,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ef4444',
     textAlign: 'center',
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0ea5e9',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    shadowColor: '#0ea5e9',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  downloadButtonDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  downloadButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 

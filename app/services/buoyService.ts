@@ -266,3 +266,30 @@ export const getAllBuoyData = async (): Promise<BuoyData[]> => {
     return [];
   }
 };
+
+export const getAllBuoyDataForCSV = async (): Promise<string> => {
+  try {
+    const allData: BuoyData[] = [];
+    let page = 1;
+    
+    // Fetch data from all pages
+    while (true) {
+      const response = await fetchBuoyData(page);
+      allData.push(...response.data);
+      
+      if (response.data.length === 0) break; // No more data
+      page++;
+    }
+    
+    // Convert to CSV format
+    const csvHeaders = 'ID,Buoy,Date,Time,Latitude,Longitude,pH,Temp (°C),TDS (ppm)\n';
+    const csvRows = allData.map(item => 
+      `"${item.ID}","${item.Buoy}","${item.Date}","${item.Time}","${item.Latitude}","${item.Longitude}","${item.pH}","${item['Temp (°C)']}","${item['TDS (ppm)']}"`
+    ).join('\n');
+    
+    return csvHeaders + csvRows;
+  } catch (error) {
+    console.error('Error fetching all buoy data for CSV:', error);
+    throw error;
+  }
+};

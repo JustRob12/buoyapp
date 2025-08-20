@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buoy App - Simple Use Case Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #1e293b;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .description {
+            background-color: #f0f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #0ea5e9;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .feature-card {
+            background-color: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .feature-card h3 {
+            color: #0ea5e9;
+            margin-top: 0;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 5px 0;
+            color: #64748b;
+        }
+        .feature-list li:before {
+            content: "✅ ";
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏖️ Buoy App - Use Case Diagram</h1>
+        
+        <div class="description">
+            <h2>System Overview</h2>
+            <p>The Buoy App is a React Native mobile application that monitors and displays real-time water quality data from multiple buoys. The system fetches data from an external PHP API and provides various features for data visualization, analysis, and export.</p>
+        </div>
+
+        <div class="mermaid">
+            graph TB
+                %% Actors
+                User((👤 User))
+                API[🌐 External PHP API]
+                
+                %% System Boundary
+                subgraph "📱 Buoy App System"
+                    %% Main Features
+                    Dashboard[🏠 View Dashboard<br/>• Latest buoy data<br/>• Buoy selection dropdown]
+                    
+                    DataTable[📊 View Data Table<br/>• Historical data<br/>• Pagination<br/>• CSV download]
+                    
+                    Graphs[📈 View Graphs<br/>• Data visualization<br/>• Charts and trends]
+                    
+                    Map[🗺️ View Map<br/>• Buoy locations<br/>• Geographic view]
+                    
+                    Settings[⚙️ Settings<br/>• App configuration]
+                end
+                
+                %% Relationships - User to System
+                User --> Dashboard
+                User --> DataTable
+                User --> Graphs
+                User --> Map
+                User --> Settings
+                
+                %% Relationships - System to API
+                Dashboard --> API
+                DataTable --> API
+                Graphs --> API
+                Map --> API
+                
+                %% Styling
+                classDef actor fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+                classDef system fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+                classDef api fill:#fff3e0,stroke:#e65100,stroke-width:3px
+                
+                class User actor
+                class API api
+                class Dashboard,DataTable,Graphs,Map,Settings system
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>🎯 Main Features</h3>
+                <ul class="feature-list">
+                    <li>Dashboard with buoy selection</li>
+                    <li>Data table with pagination</li>
+                    <li>CSV download functionality</li>
+                    <li>Graph visualization</li>
+                    <li>Map with buoy locations</li>
+                    <li>Settings configuration</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card">
+                <h3>⚙️ Technical Features</h3>
+                <ul class="feature-list">
+                    <li>API integration</li>
+                    <li>Data parsing</li>
+                    <li>File sharing</li>
+                    <li>Error handling</li>
+                    <li>Loading states</li>
+                    <li>Responsive design</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+    </script>
+</body>
+</html>
