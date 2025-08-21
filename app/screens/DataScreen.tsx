@@ -150,12 +150,12 @@ const DataScreen = () => {
           <View style={styles.titleRow}>
             <View style={styles.titleContainer}>
               <Text style={styles.title}>Data</Text>
-              <Text style={styles.subtitle}>
+              {/* <Text style={styles.subtitle}>
                 Page {currentPage} of {totalPages} • {data.length} records per page
-              </Text>
-              <Text style={styles.pageInfo}>
+              </Text> */}
+              {/* <Text style={styles.pageInfo}>
                 Navigate through pages to view all {totalPages * 10} total records
-              </Text>
+              </Text> */}
             </View>
             <View style={styles.actionButtons}>
               <TouchableOpacity
