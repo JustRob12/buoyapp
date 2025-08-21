@@ -9,6 +9,7 @@ import { getLatestBuoyData, getLatestBuoyDataForMultipleBuoys, getLatestBuoyData
 import { settingsService, loadSettings } from '../services/settingsService';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { sendNewDataNotification } from '../services/notificationService';
+import { getCachedBuoyData, cacheBuoyData, isOfflineModeEnabled } from '../services/offlineService';
 
 const DashboardScreen = () => {
   const [latestData, setLatestData] = useState<BuoyData | null>(null);
@@ -19,6 +20,7 @@ const DashboardScreen = () => {
   const [buoyLoading, setBuoyLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   const fetchAvailableBuoyNumbers = async () => {
     try {
@@ -49,8 +51,45 @@ const DashboardScreen = () => {
         setBuoyLoading(true);
       }
       
-      // Get the latest data for the specific selected buoy
-      const selectedBuoyData = await getLatestBuoyDataForSpecificBuoy(selectedBuoyCount);
+      let selectedBuoyData: BuoyData | null = null;
+      let isOfflineData = false;
+      
+      // First, try to get data from API
+      try {
+        selectedBuoyData = await getLatestBuoyDataForSpecificBuoy(selectedBuoyCount);
+        
+        // If we got data from API and offline mode is enabled, cache it
+        if (selectedBuoyData && isOfflineModeEnabled()) {
+          await cacheBuoyData([selectedBuoyData]);
+        }
+        setIsOfflineMode(false);
+      } catch (apiError) {
+        console.log('API fetch failed, trying offline data...');
+        
+        // If API fails, try to get cached offline data
+        if (isOfflineModeEnabled()) {
+          const cachedData = await getCachedBuoyData();
+          if (cachedData && cachedData.length > 0) {
+            // Find data for the selected buoy
+            const buoyData = cachedData.find(data => {
+              const buoyName = data.Buoy.trim();
+              const match = buoyName.match(/Buoy\s*(\d+)/i);
+              return match && parseInt(match[1]) === selectedBuoyCount;
+            });
+            
+            if (buoyData) {
+              selectedBuoyData = buoyData;
+              isOfflineData = true;
+              setIsOfflineMode(true);
+              console.log('Using offline cached data');
+            }
+          }
+        }
+        
+        if (!selectedBuoyData) {
+          throw apiError; // Re-throw if no offline data available
+        }
+      }
       
       if (selectedBuoyData) {
         // Check if this is new data (not initial load)
@@ -62,8 +101,8 @@ const DashboardScreen = () => {
         setLatestData(selectedBuoyData);
         setMultipleBuoyData([]);
         
-        // Send notification for new data
-        if (isNewData) {
+        // Send notification for new data (only for online data)
+        if (isNewData && !isOfflineData) {
           await sendNewDataNotification(selectedBuoyData);
         }
       } else {
@@ -145,6 +184,14 @@ const DashboardScreen = () => {
                   <Ionicons name="sync" size={14} color="#10b981" />
                   <Text style={styles.autoRefreshText}>
                     Auto-refresh: {refreshInterval < 60 ? `${refreshInterval}s` : `${refreshInterval / 60}m`}
+                  </Text>
+                </View>
+              )}
+              {isOfflineMode && (
+                <View style={styles.offlineIndicator}>
+                  <Ionicons name="cloud-offline" size={14} color="#f59e0b" />
+                  <Text style={styles.offlineText}>
+                    Offline Mode - Using cached data
                   </Text>
                 </View>
               )}
@@ -264,6 +311,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#10b981',
+    marginLeft: 4,
+  },
+  offlineIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  offlineText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#f59e0b',
     marginLeft: 4,
   },
   buoySelectionSection: {

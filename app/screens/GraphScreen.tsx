@@ -5,6 +5,7 @@ import BuoyGraph from '../components/BuoyGraph';
 import { getLatestBuoyDataForGraph, BuoyData } from '../services/buoyService';
 import { settingsService, loadSettings } from '../services/settingsService';
 import { sendMultipleBuoysNotification } from '../services/notificationService';
+import { getCachedBuoyData, cacheBuoyData, isOfflineModeEnabled } from '../services/offlineService';
 
 const GraphScreen = () => {
   const [graphData, setGraphData] = useState<BuoyData[]>([]);
@@ -17,7 +18,35 @@ const GraphScreen = () => {
       setError(null);
       const settings = await loadSettings();
       const dataPoints = settings.dataRetentionPoints;
-      const data = await getLatestBuoyDataForGraph(dataPoints);
+      
+      let data: BuoyData[] = [];
+      let isOfflineData = false;
+      
+      // First, try to get data from API
+      try {
+        data = await getLatestBuoyDataForGraph(dataPoints);
+        
+        // If we got data from API and offline mode is enabled, cache it
+        if (data.length > 0 && isOfflineModeEnabled()) {
+          await cacheBuoyData(data);
+        }
+      } catch (apiError) {
+        console.log('API fetch failed, trying offline data...');
+        
+        // If API fails, try to get cached offline data
+        if (isOfflineModeEnabled()) {
+          const cachedData = await getCachedBuoyData();
+          if (cachedData && cachedData.length > 0) {
+            data = cachedData.slice(0, dataPoints);
+            isOfflineData = true;
+            console.log('Using offline cached data for graphs');
+          }
+        }
+        
+        if (data.length === 0) {
+          throw apiError; // Re-throw if no offline data available
+        }
+      }
       
       // Check if this is new data
       const isNewData = graphData.length > 0 && (
@@ -28,8 +57,8 @@ const GraphScreen = () => {
       
       setGraphData(data);
       
-      // Send notification for new graph data
-      if (isNewData && data.length > 0) {
+      // Send notification for new graph data (only for online data)
+      if (isNewData && data.length > 0 && !isOfflineData) {
         await sendMultipleBuoysNotification(data);
       }
     } catch (err) {

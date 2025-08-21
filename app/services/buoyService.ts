@@ -25,7 +25,7 @@ const cleanHtmlTags = (text: string): string => {
 
 const API_BASE_URL = 'https://dorsu.edu.ph/buoy/dashboard.php';
 
-export const fetchBuoyData = async (page: number = 1): Promise<BuoyResponse> => {
+export const fetchBuoyData = async (page: number = 1, buoyFilter?: string, dateFilter?: string): Promise<BuoyResponse> => {
   try {
     const response = await axios.get(`${API_BASE_URL}?page=${page}`);
     
@@ -36,7 +36,7 @@ export const fetchBuoyData = async (page: number = 1): Promise<BuoyResponse> => 
     const tableRowRegex = /<tr[^>]*>.*?<\/tr>/gs;
     const rows = htmlContent.match(tableRowRegex) || [];
     
-    const buoyData: BuoyData[] = [];
+    let buoyData: BuoyData[] = [];
     
     rows.forEach((row: string, index: number) => {
       // Skip header row
@@ -60,6 +60,35 @@ export const fetchBuoyData = async (page: number = 1): Promise<BuoyResponse> => 
         });
       }
     });
+    
+    // Apply filters
+    if (buoyFilter) {
+      buoyData = buoyData.filter(data => {
+        const buoyName = data.Buoy.trim();
+        const match = buoyName.match(/Buoy\s*(\d+)/i);
+        return match && match[1] === buoyFilter;
+      });
+    }
+    
+    if (dateFilter) {
+      const now = new Date();
+      buoyData = buoyData.filter(data => {
+        const dataDate = new Date(data.Date);
+        
+        switch (dateFilter) {
+          case 'today':
+            return dataDate.toDateString() === now.toDateString();
+          case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            return dataDate >= weekAgo;
+          case 'month':
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            return dataDate >= monthAgo;
+          default:
+            return true;
+        }
+      });
+    }
     
     // Extract pagination info
     const paginationRegex = /page=(\d+)/g;

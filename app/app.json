@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "app",
+    "name": "AquaNet",
     "slug": "app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -27,8 +27,11 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "POST_NOTIFICATIONS"
-      ]
+        "POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.ladyrob.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,11 +46,15 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#0ea5e9",
-          "sounds": ["./assets/notification-sound.wav"]
+          "icon": "./assets/icon.png",
+          "color": "#0ea5e9"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7257c712-4afe-47bf-9c5b-39bf789f68e3"
+      }
+    }
   }
 }

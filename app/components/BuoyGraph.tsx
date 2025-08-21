@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
+import Svg, { Path, Line, Circle, Text as SvgText, G } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { BuoyData } from '../services/buoyService';
 
@@ -17,96 +17,37 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
 
   // Process data for charts - get latest 10 data points and reverse for chronological order
   const processedData = data.slice(0, 10).reverse();
+  
+  // Safety check - if no data, show empty state
+  if (!processedData || processedData.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>No data available for charts</Text>
+        </View>
+      </View>
+    );
+  }
 
-  // Calculate chart width - make it wider for horizontal scrolling
-  const chartWidth = Math.max(screenWidth * 1.5, processedData.length * 80); // Minimum 80px per data point
-
-  // Extract values for each chart
-  const pHData = processedData.map(item => parseFloat(item.pH) || 0);
-  const tempData = processedData.map(item => parseFloat(item['Temp (°C)']) || 0);
-  const tdsData = processedData.map(item => parseFloat(item['TDS (ppm)']) || 0);
+  // Extract values for each chart with proper error handling
+  const pHData = processedData.map(item => {
+    const value = parseFloat(item.pH);
+    return isNaN(value) ? 0 : value;
+  });
+  const tempData = processedData.map(item => {
+    const value = parseFloat(item['Temp (°C)']);
+    return isNaN(value) ? 0 : value;
+  });
+  const tdsData = processedData.map(item => {
+    const value = parseFloat(item['TDS (ppm)']);
+    return isNaN(value) ? 0 : value;
+  });
 
   // Create labels for x-axis (time)
   const labels = processedData.map(item => {
     const time = item.Time.split(':');
     return `${time[0]}:${time[1]}`;
   });
-
-  const chartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
-    decimalPlaces: 1,
-    color: (opacity = 1) => `rgba(14, 165, 233, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: '4',
-      strokeWidth: '2',
-      stroke: '#0ea5e9',
-    },
-    // Keep Y-axis labels visible
-    propsForLabels: {
-      fontSize: 12,
-    },
-  };
-
-  const pHChartData = {
-    labels,
-    datasets: [
-      {
-        data: pHData,
-        color: (opacity = 1) => `rgba(14, 165, 233, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-  };
-
-  const tempChartData = {
-    labels,
-    datasets: [
-      {
-        data: tempData,
-        color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-  };
-
-  const tdsChartData = {
-    labels,
-    datasets: [
-      {
-        data: tdsData,
-        color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-  };
-
-  // Combined chart data with all three datasets
-  const combinedChartData = {
-    labels,
-    datasets: [
-      {
-        data: pHData,
-        color: (opacity = 1) => `rgba(14, 165, 233, ${opacity})`,
-        strokeWidth: 2,
-      },
-      {
-        data: tempData,
-        color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-        strokeWidth: 2,
-      },
-      {
-        data: tdsData,
-        color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-  };
 
   const chartOptions: { label: string; value: ChartType; icon: string }[] = [
     { label: 'All Data (Combined)', value: 'Combined', icon: 'layers' },
@@ -115,99 +56,338 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
     { label: 'TDS (ppm)', value: 'TDS', icon: 'analytics' },
   ];
 
-  const renderChart = () => {
-    switch (selectedChart) {
-      case 'pH':
-        return (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
-          >
-            <LineChart
-              data={pHChartData}
-              width={chartWidth}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
+  // Custom Line Chart Component
+  const CustomLineChart = ({ 
+    data, 
+    labels, 
+    color, 
+    title, 
+    height = 200 
+  }: { 
+    data: number[], 
+    labels: string[], 
+    color: string, 
+    title: string,
+    height?: number 
+  }) => {
+    const chartWidth = Math.max(screenWidth - 40, labels.length * 80);
+    const chartHeight = height;
+    const padding = 40;
+    const graphWidth = chartWidth - (padding * 2);
+    const graphHeight = chartHeight - (padding * 2);
+
+    const maxValue = Math.max(...data, 1);
+    const minValue = Math.min(...data, 0);
+
+    const points = data.map((value, index) => {
+      const x = padding + (index / (data.length - 1)) * graphWidth;
+      const y = padding + graphHeight - ((value - minValue) / (maxValue - minValue)) * graphHeight;
+      return { x, y, value };
+    });
+
+    // Create path for line
+    const pathData = points.map((point, index) => {
+      if (index === 0) return `M ${point.x} ${point.y}`;
+      return `L ${point.x} ${point.y}`;
+    }).join(' ');
+
+    return (
+      <View style={styles.chartContainer}>
+        <Text style={styles.chartTitle}>{title}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Svg width={chartWidth} height={chartHeight}>
+            {/* Grid lines */}
+            {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+              const y = padding + ratio * graphHeight;
+              const value = minValue + (1 - ratio) * (maxValue - minValue);
+              return (
+                <G key={index}>
+                  <Line
+                    x1={padding}
+                    y1={y}
+                    x2={chartWidth - padding}
+                    y2={y}
+                    stroke="#e2e8f0"
+                    strokeWidth="1"
+                  />
+                  <SvgText
+                    x={padding - 10}
+                    y={y + 4}
+                    fontSize="10"
+                    fill="#64748b"
+                    textAnchor="end"
+                  >
+                    {value.toFixed(1)}
+                  </SvgText>
+                </G>
+              );
+            })}
+
+            {/* X-axis labels */}
+            {labels.map((label, index) => {
+              const x = padding + (index / (labels.length - 1)) * graphWidth;
+              return (
+                <SvgText
+                  key={index}
+                  x={x}
+                  y={chartHeight - 10}
+                  fontSize="10"
+                  fill="#64748b"
+                  textAnchor="middle"
+                >
+                  {label}
+                </SvgText>
+              );
+            })}
+
+            {/* Line path */}
+            <Path
+              d={pathData}
+              stroke={color}
+              strokeWidth="3"
+              fill="none"
             />
-          </ScrollView>
-        );
-      case 'Temperature':
-        return (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
-          >
-            <LineChart
-              data={tempChartData}
-              width={chartWidth}
-              height={220}
-              chartConfig={{
-                ...chartConfig,
-                color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-              }}
-              bezier
-              style={styles.chart}
-            />
-          </ScrollView>
-        );
-      case 'TDS':
-        return (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
-          >
-            <LineChart
-              data={tdsChartData}
-              width={chartWidth}
-              height={220}
-              chartConfig={{
-                ...chartConfig,
-                color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-              }}
-              bezier
-              style={styles.chart}
-            />
-          </ScrollView>
-        );
-      case 'Combined':
-        return (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
-          >
-            <LineChart
-              data={combinedChartData}
-              width={chartWidth}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
-          </ScrollView>
-        );
-      default:
-        return null;
-    }
+
+            {/* Data points */}
+            {points.map((point, index) => (
+              <Circle
+                key={index}
+                cx={point.x}
+                cy={point.y}
+                r="4"
+                fill={color}
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+            ))}
+          </Svg>
+        </ScrollView>
+      </View>
+    );
   };
 
-  const getChartTitle = () => {
-    switch (selectedChart) {
-      case 'pH':
-        return 'pH Levels';
-      case 'Temperature':
-        return 'Temperature (°C)';
-      case 'TDS':
-        return 'TDS (ppm)';
-      case 'Combined':
-        return 'All Sensor Data';
-      default:
-        return '';
+  // Combined Line Chart
+  const CombinedLineChart = ({ 
+    pHData, 
+    tempData, 
+    tdsData, 
+    labels, 
+    title 
+  }: { 
+    pHData: number[], 
+    tempData: number[], 
+    tdsData: number[], 
+    labels: string[], 
+    title: string 
+  }) => {
+    const chartWidth = Math.max(screenWidth - 40, labels.length * 80);
+    const chartHeight = 250;
+    const padding = 40;
+    const graphWidth = chartWidth - (padding * 2);
+    const graphHeight = chartHeight - (padding * 2);
+
+    const allData = [...pHData, ...tempData, ...tdsData];
+    const maxValue = Math.max(...allData, 1);
+    const minValue = Math.min(...allData, 0);
+
+    const createPoints = (data: number[]) => {
+      return data.map((value, index) => {
+        const x = padding + (index / (data.length - 1)) * graphWidth;
+        const y = padding + graphHeight - ((value - minValue) / (maxValue - minValue)) * graphHeight;
+        return { x, y, value };
+      });
+    };
+
+    const pHPoints = createPoints(pHData);
+    const tempPoints = createPoints(tempData);
+    const tdsPoints = createPoints(tdsData);
+
+    const createPath = (points: { x: number; y: number }[]) => {
+      return points.map((point, index) => {
+        if (index === 0) return `M ${point.x} ${point.y}`;
+        return `L ${point.x} ${point.y}`;
+      }).join(' ');
+    };
+
+    return (
+      <View style={styles.chartContainer}>
+        <Text style={styles.chartTitle}>{title}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Svg width={chartWidth} height={chartHeight}>
+            {/* Grid lines */}
+            {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+              const y = padding + ratio * graphHeight;
+              const value = minValue + (1 - ratio) * (maxValue - minValue);
+              return (
+                <G key={index}>
+                  <Line
+                    x1={padding}
+                    y1={y}
+                    x2={chartWidth - padding}
+                    y2={y}
+                    stroke="#e2e8f0"
+                    strokeWidth="1"
+                  />
+                  <SvgText
+                    x={padding - 10}
+                    y={y + 4}
+                    fontSize="10"
+                    fill="#64748b"
+                    textAnchor="end"
+                  >
+                    {value.toFixed(1)}
+                  </SvgText>
+                </G>
+              );
+            })}
+
+            {/* X-axis labels */}
+            {labels.map((label, index) => {
+              const x = padding + (index / (labels.length - 1)) * graphWidth;
+              return (
+                <SvgText
+                  key={index}
+                  x={x}
+                  y={chartHeight - 10}
+                  fontSize="10"
+                  fill="#64748b"
+                  textAnchor="middle"
+                >
+                  {label}
+                </SvgText>
+              );
+            })}
+
+            {/* pH Line */}
+            <Path
+              d={createPath(pHPoints)}
+              stroke="#0ea5e9"
+              strokeWidth="3"
+              fill="none"
+            />
+
+            {/* Temperature Line */}
+            <Path
+              d={createPath(tempPoints)}
+              stroke="#ef4444"
+              strokeWidth="3"
+              fill="none"
+            />
+
+            {/* TDS Line */}
+            <Path
+              d={createPath(tdsPoints)}
+              stroke="#22c55e"
+              strokeWidth="3"
+              fill="none"
+            />
+
+            {/* Data points */}
+            {pHPoints.map((point, index) => (
+              <Circle
+                key={`pH-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r="3"
+                fill="#0ea5e9"
+                stroke="#ffffff"
+                strokeWidth="1"
+              />
+            ))}
+            {tempPoints.map((point, index) => (
+              <Circle
+                key={`temp-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r="3"
+                fill="#ef4444"
+                stroke="#ffffff"
+                strokeWidth="1"
+              />
+            ))}
+            {tdsPoints.map((point, index) => (
+              <Circle
+                key={`tds-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r="3"
+                fill="#22c55e"
+                stroke="#ffffff"
+                strokeWidth="1"
+              />
+            ))}
+          </Svg>
+        </ScrollView>
+
+        {/* Legend */}
+        <View style={styles.legendContainer}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#0ea5e9' }]} />
+            <Text style={styles.legendText}>pH</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+            <Text style={styles.legendText}>Temperature</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+            <Text style={styles.legendText}>TDS</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderChart = () => {
+    try {
+      switch (selectedChart) {
+        case 'pH':
+          return (
+            <CustomLineChart 
+              data={pHData} 
+              labels={labels} 
+              color="#0ea5e9" 
+              title="pH Levels" 
+            />
+          );
+        case 'Temperature':
+          return (
+            <CustomLineChart 
+              data={tempData} 
+              labels={labels} 
+              color="#ef4444" 
+              title="Temperature (°C)" 
+            />
+          );
+        case 'TDS':
+          return (
+            <CustomLineChart 
+              data={tdsData} 
+              labels={labels} 
+              color="#22c55e" 
+              title="TDS (ppm)" 
+            />
+          );
+        case 'Combined':
+          return (
+            <CombinedLineChart 
+              pHData={pHData}
+              tempData={tempData}
+              tdsData={tdsData}
+              labels={labels}
+              title="All Sensor Data"
+            />
+          );
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.error('Error rendering chart:', error);
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>Error loading chart</Text>
+        </View>
+      );
     }
   };
 
@@ -237,27 +417,8 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
 
       {/* Chart Section */}
       <View style={styles.chartSection}>
-        <Text style={styles.chartTitle}>{getChartTitle()}</Text>
         {renderChart()}
       </View>
-
-      {/* Legend for Combined Chart */}
-      {selectedChart === 'Combined' && (
-        <View style={styles.legendContainer}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#0ea5e9' }]} />
-            <Text style={styles.legendText}>pH</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
-            <Text style={styles.legendText}>Temperature</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-            <Text style={styles.legendText}>TDS</Text>
-          </View>
-        </View>
-      )}
 
       {/* Dropdown Modal */}
       <Modal
@@ -341,27 +502,23 @@ const styles = StyleSheet.create({
   chartSection: {
     marginBottom: 20,
   },
-  horizontalScrollContent: {
-    paddingRight: 20,
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
   },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
-    marginBottom: 16,
+  noDataText: {
+    fontSize: 16,
+    color: '#64748b',
     textAlign: 'center',
   },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  // Chart Styles
+  chartContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#0ea5e9',
     shadowOffset: {
       width: 0,
@@ -370,6 +527,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1e3a8a',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
   },
   legendItem: {
     flexDirection: 'row',
@@ -386,6 +558,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#64748b',
   },
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

@@ -9,6 +9,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -234,7 +236,7 @@ class NotificationService {
 
   // Check if notifications are supported
   isSupported(): boolean {
-    return Notifications.isSupported();
+    return true; // expo-notifications is supported on all platforms
   }
 }
 
