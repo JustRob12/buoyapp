@@ -14,8 +14,20 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.aquanet.app",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app uses location to show your position on the map relative to buoy locations."
+        "NSLocationWhenInUseUsageDescription": "This app uses location to show your position on the map relative to buoy locations.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to show your position on the map relative to buoy locations.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification",
+          "location",
+          "fetch",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,7 +43,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.ladyrob.app"
+      "package": "com.Scheme.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -53,7 +65,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "7257c712-4afe-47bf-9c5b-39bf789f68e3"
+        "projectId": "ee75c658-fc23-4d53-b6f6-6f49c1abf9d5"
       }
     }
   }

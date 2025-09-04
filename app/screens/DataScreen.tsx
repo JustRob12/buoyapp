@@ -166,6 +166,20 @@ const DataScreen = () => {
                 <Text style={styles.filterToggleText}>Filters</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={onRefresh}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <ActivityIndicator size="small" color="#0ea5e9" />
+                ) : (
+                  <Ionicons name="refresh-outline" size={20} color="#0ea5e9" />
+                )}
+                <Text style={styles.refreshButtonText}>
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.downloadButton, downloading && styles.downloadButtonDisabled]}
                 onPress={downloadCSV}
                 disabled={downloading}
@@ -388,6 +402,22 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   filterToggleText: {
+    color: '#0ea5e9',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  refreshButtonText: {
     color: '#0ea5e9',
     fontSize: 14,
     fontWeight: '500',

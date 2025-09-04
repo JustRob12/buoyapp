@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level 1 Data Flow Diagram - Buoy App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .diagram-container {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .process {
+            display: inline-block;
+            width: 120px;
+            height: 80px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background-color: #e3f2fd;
+            margin: 10px;
+            padding: 10px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            position: relative;
+        }
+        .process::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: transparent;
+        }
+        .data-store {
+            display: inline-block;
+            width: 100px;
+            height: 60px;
+            border: 2px solid #333;
+            border-left: none;
+            background-color: #fff3e0;
+            margin: 10px;
+            padding: 10px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .external-entity {
+            display: inline-block;
+            width: 100px;
+            height: 60px;
+            border: 2px solid #333;
+            background-color: #f3e5f5;
+            margin: 10px;
+            padding: 10px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .data-flow {
+            display: inline-block;
+            margin: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .arrow {
+            font-size: 18px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .flow-label {
+            font-size: 10px;
+            color: #333;
+            background-color: #fff;
+            padding: 2px 4px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        .legend {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .legend-symbol {
+            width: 60px;
+            height: 40px;
+            border: 2px solid #333;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .process-legend {
+            background-color: #e3f2fd;
+            border-radius: 8px;
+        }
+        .data-store-legend {
+            background-color: #fff3e0;
+            border-left: none;
+        }
+        .external-legend {
+            background-color: #f3e5f5;
+        }
+        .description {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e8f5e8;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Level 1 Data Flow Diagram - Buoy App</h1>
+        
+        <div class="description">
+            <h3>Overview</h3>
+            <p>This Level 1 DFD shows the detailed processes within the Buoy App system, including data fetching, processing, storage, and visualization components.</p>
+        </div>
+
+                 <div class="diagram-container">
+             <!-- External Entities -->
+             <div style="margin-bottom: 20px;">
+                 <div class="external-entity">External API<br>(dorsu.edu.ph)</div>
+             </div>
+
+             <!-- Data Flows from External API -->
+             <div class="data-flow">
+                 <div class="flow-label">Water Quality Data<br>Location Data</div>
+                 <div class="arrow">↓</div>
+             </div>
+
+             <!-- Process 1: Data Fetching -->
+             <div class="process">1.0<br>Fetch Buoy Data</div>
+
+             <!-- Data Flow to Process 2 -->
+             <div class="data-flow">
+                 <div class="arrow">→</div>
+                 <div class="flow-label">Raw Data</div>
+             </div>
+
+             <!-- Process 2: Data Processing -->
+             <div class="process">2.0<br>Process & Clean Data</div>
+
+             <!-- Multiple Processes for Different Views -->
+             <div style="margin-top: 20px;">
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">Filtered Data</div>
+                 </div>
+                 
+                 <div class="process">3.0<br>Generate Dashboard</div>
+                 
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">Dashboard Data</div>
+                 </div>
+             </div>
+
+             <div style="margin-top: 20px;">
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">Chart Data</div>
+                 </div>
+                 
+                 <div class="process">4.0<br>Create Charts & Graphs</div>
+                 
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">Visualization Data</div>
+                 </div>
+             </div>
+
+             <div style="margin-top: 20px;">
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">Map Data</div>
+                 </div>
+                 
+                 <div class="process">5.0<br>Generate Map View</div>
+                 
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">Location Data</div>
+                 </div>
+             </div>
+
+             <div style="margin-top: 20px;">
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">Export Data</div>
+                 </div>
+                 
+                 <div class="process">6.0<br>Export to CSV</div>
+                 
+                 <div class="data-flow">
+                     <div class="arrow">→</div>
+                     <div class="flow-label">CSV File</div>
+                 </div>
+             </div>
+
+             <!-- User -->
+             <div style="margin-top: 20px;">
+                 <div class="external-entity">User</div>
+             </div>
+         </div>
+
+        <div class="legend">
+            <h3>Gane and Sarson Symbols Legend</h3>
+            <div class="legend-item">
+                <div class="legend-symbol process-legend">Process</div>
+                <span>Process - Transforms data</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-symbol data-store-legend">Data Store</div>
+                <span>Data Store - Stores data</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-symbol external-legend">External</div>
+                <span>External Entity - Source or destination outside the system</span>
+            </div>
+        </div>
+
+                 <div class="description">
+             <h3>Process Descriptions</h3>
+             <ul>
+                 <li><strong>1.0 Fetch Buoy Data:</strong> Retrieves raw HTML data from external API with retry mechanisms and error handling</li>
+                 <li><strong>2.0 Process & Clean Data:</strong> Parses HTML, removes tags, validates data, and applies initial formatting</li>
+                 <li><strong>3.0 Generate Dashboard:</strong> Creates dashboard view with latest readings and summary statistics</li>
+                 <li><strong>4.0 Create Charts & Graphs:</strong> Generates interactive visualizations for water quality trends</li>
+                 <li><strong>5.0 Generate Map View:</strong> Creates map visualization showing buoy locations</li>
+                 <li><strong>6.0 Export to CSV:</strong> Converts processed data to CSV format for download</li>
+             </ul>
+         </div>
+    </div>
+</body>
+</html>

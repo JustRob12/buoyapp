@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import BuoyGraph from '../components/BuoyGraph';
 import { getLatestBuoyDataForGraph, BuoyData } from '../services/buoyService';
@@ -90,8 +91,23 @@ const GraphScreen = () => {
         }
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Buoy Data Graphs</Text>
-          <Text style={styles.subtitle}>Choose chart type and scroll horizontally to see more data</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Buoy Data Graphs</Text>
+              <Text style={styles.subtitle}>Choose chart type and scroll horizontally to see more data</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={onRefresh}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color="#0ea5e9" />
+              ) : (
+                <Ionicons name="refresh-outline" size={20} color="#0ea5e9" />
+              )}
+            </TouchableOpacity>
+          </View>
           
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -130,6 +146,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  titleContainer: {
+    flex: 1,
+  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -143,6 +168,9 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  refreshButton: {
+    padding: 8,
   },
   loadingContainer: {
     flex: 1,

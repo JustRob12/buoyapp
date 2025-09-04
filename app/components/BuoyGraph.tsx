@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import Svg, { Path, Line, Circle, Text as SvgText, G } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +15,11 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
   const [selectedChart, setSelectedChart] = useState<ChartType>('Combined');
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Process data for charts - get latest 10 data points and reverse for chronological order
-  const processedData = data.slice(0, 10).reverse();
+  // Memoize processed data to prevent unnecessary recalculations
+  const processedData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.slice(0, 10).reverse();
+  }, [data]);
   
   // Safety check - if no data, show empty state
   if (!processedData || processedData.length === 0) {
@@ -24,6 +27,17 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
       <View style={styles.container}>
         <View style={styles.noDataContainer}>
           <Text style={styles.noDataText}>No data available for charts</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Additional safety check for data integrity
+  if (!Array.isArray(processedData) || processedData.some(item => !item || typeof item !== 'object')) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>Invalid data format for charts</Text>
         </View>
       </View>
     );

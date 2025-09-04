@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isOnline } from './networkService';
 
 export interface BuoyData {
   ID: string;
@@ -23,11 +24,45 @@ const cleanHtmlTags = (text: string): string => {
   return text.replace(/<[^>]*>/g, '').trim();
 };
 
+// Retry mechanism for API calls
+const retryApiCall = async <T>(
+  apiCall: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await apiCall();
+    } catch (error) {
+      lastError = error as Error;
+      console.log(`API call attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+      }
+    }
+  }
+  
+  throw lastError!;
+};
+
 const API_BASE_URL = 'https://dorsu.edu.ph/buoy/dashboard.php';
 
 export const fetchBuoyData = async (page: number = 1, buoyFilter?: string, dateFilter?: string): Promise<BuoyResponse> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}?page=${page}`);
+    // Check network connectivity first
+    const online = await isOnline();
+    if (!online) {
+      throw new Error('No internet connection available');
+    }
+
+    const response = await retryApiCall(() => 
+      axios.get(`${API_BASE_URL}?page=${page}`, {
+        timeout: 10000, // 10 second timeout
+      })
+    );
     
     // Parse the HTML response to extract table data
     const htmlContent = response.data;
@@ -118,11 +153,13 @@ export const getLatestBuoyData = async (): Promise<BuoyData | null> => {
 
 export const getLatestBuoyDataForGraph = async (count: number = 20): Promise<BuoyData[]> => {
   try {
+    // Limit count to prevent performance issues
+    const maxCount = Math.min(count, 50);
     const allData: BuoyData[] = [];
     let page = 1;
     
     // Fetch data from multiple pages until we have enough data points
-    while (allData.length < count && page <= 10) { // Increased to 10 pages max for more data
+    while (allData.length < maxCount && page <= 10) { // Increased to 10 pages max for more data
       const response = await fetchBuoyData(page);
       allData.push(...response.data);
       
@@ -130,8 +167,8 @@ export const getLatestBuoyDataForGraph = async (count: number = 20): Promise<Buo
       page++;
     }
     
-    // Return the latest 'count' data points
-    return allData.slice(0, count);
+    // Return the latest 'maxCount' data points
+    return allData.slice(0, maxCount);
   } catch (error) {
     console.error('Error fetching buoy data for graph:', error);
     return [];
@@ -258,7 +295,7 @@ export const getLatestBuoyDataForSpecificBuoy = async (buoyNumber: number): Prom
   }
 };
 
-export const getAllBuoyData = async (): Promise<BuoyData[]> => {
+export const getAllBuoyData = async (maxPages: number = 50): Promise<BuoyData[]> => {
   try {
     const allData: BuoyData[] = [];
     let page = 1;
@@ -266,8 +303,8 @@ export const getAllBuoyData = async (): Promise<BuoyData[]> => {
     
     console.log('Starting to fetch all buoy data...');
     
-    // Fetch all available pages
-    while (hasMoreData) { // Fetch all available data
+    // Fetch all available pages with a safety limit
+    while (hasMoreData && page <= maxPages) { // Add safety limit to prevent infinite loops
       const response = await fetchBuoyData(page);
       
       if (response.data.length === 0) {
@@ -296,13 +333,13 @@ export const getAllBuoyData = async (): Promise<BuoyData[]> => {
   }
 };
 
-export const getAllBuoyDataForCSV = async (): Promise<string> => {
+export const getAllBuoyDataForCSV = async (maxPages: number = 50): Promise<string> => {
   try {
     const allData: BuoyData[] = [];
     let page = 1;
     
-    // Fetch data from all pages
-    while (true) {
+    // Fetch data from all pages with safety limit
+    while (page <= maxPages) {
       const response = await fetchBuoyData(page);
       allData.push(...response.data);
       

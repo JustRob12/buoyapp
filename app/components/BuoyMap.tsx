@@ -57,6 +57,44 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
 
   const coordinates = getMapCoordinates();
 
+  // Haversine distance in meters between two coords
+  const calculateDistanceMeters = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number => {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371000; // Earth radius in meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Build distance labels for each consecutive pair
+  const segmentLabels = coordinates.length > 1
+    ? coordinates.slice(0, -1).map((start, i) => {
+        const end = coordinates[i + 1];
+        const distanceMeters = calculateDistanceMeters(
+          start.latitude,
+          start.longitude,
+          end.latitude,
+          end.longitude
+        );
+        const label = distanceMeters < 1000
+          ? `${Math.round(distanceMeters)} m`
+          : `${(distanceMeters / 1000).toFixed(1)} km`;
+        const midLat = (start.latitude + end.latitude) / 2;
+        const midLng = (start.longitude + end.longitude) / 2;
+        return { midLat, midLng, label, key: `${start.id}-${end.id}` };
+      })
+    : [];
+
   // Calculate center of map
   const getMapCenter = () => {
     if (coordinates.length === 0) {
@@ -166,6 +204,21 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
             lineDashPattern={[5, 5]}
           />
         )}
+
+        {/* Distance labels at segment midpoints */}
+        {segmentLabels.map(seg => (
+          <Marker
+            key={`dist-${seg.key}`}
+            coordinate={{ latitude: seg.midLat, longitude: seg.midLng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges
+            zIndex={9999}
+          >
+            <View style={styles.distanceLabel}>
+              <Text style={styles.distanceLabelText}>{seg.label}</Text>
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
      
@@ -258,6 +311,19 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  distanceLabel: {
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  distanceLabelText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#000000',
   },
   loadingContainer: {
     flex: 1,
