@@ -16,7 +16,7 @@
     "@react-navigation/native": "^7.1.17",
     "axios": "^1.11.0",
     "expo": "~54.0.7",
-    "expo-file-system": "~19.0.14",
+    "expo-file-system": "^19.0.14",
     "expo-location": "~19.0.7",
     "expo-notifications": "~0.32.0",
     "expo-sharing": "~14.0.7",

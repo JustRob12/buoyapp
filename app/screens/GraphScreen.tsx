@@ -144,7 +144,6 @@ const GraphScreen = () => {
           ) : (
             <View style={styles.noDataContainer}>
               <Text style={styles.noDataText}>No graph data available</Text>
-              {console.log('📭 GraphScreen: No data available, graphData.length:', graphData.length)}
             </View>
           )}
         </View>

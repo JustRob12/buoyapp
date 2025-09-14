@@ -18,6 +18,8 @@ const DataScreen = () => {
   const [allData, setAllData] = useState<BuoyData[]>([]);
   const [filteredData, setFilteredData] = useState<BuoyData[]>([]);
   const [currentFilters, setCurrentFilters] = useState<{ month?: string; year?: string }>({});
+  const [clearFiltersTrigger, setClearFiltersTrigger] = useState(0);
+  const [filterLoading, setFilterLoading] = useState(false);
   
 
   const fetchData = async (page: number = 1) => {
@@ -41,6 +43,7 @@ const DataScreen = () => {
   const fetchAllData = async () => {
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
       console.log('🔄 Fetching all data for filtering...');
       const allBuoyData = await getAllBuoyData();
       setAllData(allBuoyData);
@@ -54,17 +57,9 @@ const DataScreen = () => {
     }
   };
 
-  const applyFilters = async (filters: { month?: string; year?: string }) => {
-    console.log('🔍 Applying filters:', filters);
-    setCurrentFilters(filters);
-    
-    // If we have filters, fetch all data first
-    if (Object.keys(filters).length > 0 && allData.length === 0) {
-      console.log('📥 Fetching all data for filtering...');
-      await fetchAllData();
-    }
-    
-    let filtered = [...allData];
+  const applyFiltersToData = (dataToFilter: BuoyData[], filters: { month?: string; year?: string }) => {
+    console.log(`🔍 Filtering ${dataToFilter.length} records with filters:`, filters);
+    let filtered = [...dataToFilter];
     
     if (filters.month) {
       filtered = filtered.filter(item => {
@@ -138,23 +133,170 @@ const DataScreen = () => {
     
     setFilteredData(filtered);
     console.log(`📊 Filtered to ${filtered.length} records`);
+    
+    // Clear any previous errors when applying filters
+    if (error) {
+      setError(null);
+    }
+  };
+
+  const applyFilters = async (filters: { month?: string; year?: string }) => {
+    console.log('🔍 Applying filters:', filters);
+    setCurrentFilters(filters);
+    setFilterLoading(true);
+    
+    try {
+      if (Object.keys(filters).length > 0) {
+        // Check if we need to fetch all data for proper filtering
+        if (allData.length === 0) {
+          console.log('📥 Fetching all data for filtering...');
+          const freshData = await getAllBuoyData();
+          setAllData(freshData);
+          console.log(`✅ Loaded ${freshData.length} records for filtering`);
+          applyFiltersToData(freshData, filters);
+        } else {
+          // We already have all data, apply filters immediately
+          console.log(`🔍 Filtering ${allData.length} records`);
+          applyFiltersToData(allData, filters);
+        }
+      } else {
+        // No filters, clear filtered data
+        setFilteredData([]);
+      }
+    } catch (error) {
+      console.error('❌ Error applying filters:', error);
+      setError('Failed to apply filters. Please try again.');
+    } finally {
+      setFilterLoading(false);
+    }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (Object.keys(currentFilters).length > 0) {
-      // If filters are active, refresh filtered data
-      await fetchAllData();
-      applyFilters(currentFilters);
-    } else {
-      // If no filters, refresh paginated data
-      await fetchData(currentPage);
+    try {
+      // Clear filters and reset to unfiltered view
+      console.log('🔄 Refreshing and clearing filters...');
+      setCurrentFilters({});
+      setFilteredData([]);
+      setAllData([]);
+      // Trigger clear filters in DataTable component
+      setClearFiltersTrigger(prev => prev + 1);
+      await fetchData(1); // Go back to first page of paginated view
+    } catch (error) {
+      console.error('Error during refresh:', error);
+      setError('Failed to refresh data. Please try again.');
+    } finally {
+      setRefreshing(false);
     }
-    setRefreshing(false);
   };
 
   const onPageChange = async (page: number) => {
     await fetchData(page);
+  };
+
+  const convertDataToCSV = (data: BuoyData[]): string => {
+    if (data.length === 0) return '';
+    
+    // CSV headers
+    const headers = ['ID', 'Buoy', 'Date', 'Time', 'Latitude', 'Longitude', 'pH', 'Temp (°C)', 'TDS (ppm)'];
+    
+    // Convert data to CSV rows
+    const csvRows = data.map(item => [
+      item.ID,
+      item.Buoy,
+      item.Date,
+      item.Time,
+      item.Latitude,
+      item.Longitude,
+      item.pH,
+      item['Temp (°C)'],
+      item['TDS (ppm)']
+    ]);
+    
+    // Combine headers and rows
+    const csvContent = [headers, ...csvRows]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+    
+    return csvContent;
+  };
+
+  const filterData = (dataToFilter: BuoyData[], filters: { month?: string; year?: string }): BuoyData[] => {
+    console.log(`🔍 Filtering ${dataToFilter.length} records with filters:`, filters);
+    let filtered = [...dataToFilter];
+    
+    if (filters.month) {
+      filtered = filtered.filter(item => {
+        try {
+          // Parse date more carefully
+          const dateStr = item.Date.trim();
+          const timeStr = item.Time.trim();
+          
+          // Handle different date formats
+          let date;
+          if (dateStr.includes('/')) {
+            // Format: MM/DD/YYYY or DD/MM/YYYY
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+              // Assume MM/DD/YYYY format
+              date = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            }
+          } else if (dateStr.includes('-')) {
+            // Format: YYYY-MM-DD
+            date = new Date(dateStr);
+          } else {
+            // Try parsing as is
+            date = new Date(`${dateStr} ${timeStr}`);
+          }
+          
+          if (!date || isNaN(date.getTime())) {
+            console.warn('Invalid date:', dateStr, timeStr);
+            return false;
+          }
+          
+          const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          return monthYear === filters.month;
+        } catch (error) {
+          console.warn('Error parsing date:', item.Date, item.Time, error);
+          return false;
+        }
+      });
+    }
+    
+    if (filters.year) {
+      filtered = filtered.filter(item => {
+        try {
+          const dateStr = item.Date.trim();
+          const timeStr = item.Time.trim();
+          
+          let date;
+          if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+              date = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            }
+          } else if (dateStr.includes('-')) {
+            date = new Date(dateStr);
+          } else {
+            date = new Date(`${dateStr} ${timeStr}`);
+          }
+          
+          if (!date || isNaN(date.getTime())) {
+            console.warn('Invalid date:', dateStr, timeStr);
+            return false;
+          }
+          
+          const year = date.getFullYear().toString();
+          return year === filters.year;
+        } catch (error) {
+          console.warn('Error parsing date:', item.Date, item.Time, error);
+          return false;
+        }
+      });
+    }
+    
+    console.log(`📊 Filtered to ${filtered.length} records`);
+    return filtered;
   };
 
 
@@ -174,6 +316,7 @@ const DataScreen = () => {
               try {
                 // Fetch all data and convert to CSV
                 const csvData = await getAllBuoyDataForCSV();
+                console.log('📊 Downloading all records');
                 
                 // Create filename with timestamp
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -218,13 +361,15 @@ const DataScreen = () => {
   const displayData = Object.keys(currentFilters).length > 0 ? filteredData : data;
   const displayTotalPages = Object.keys(currentFilters).length > 0 ? Math.ceil(filteredData.length / 10) : totalPages;
 
-  if (loading && !refreshing) {
+  if ((loading && !refreshing) || filterLoading) {
     return (
       <View style={styles.container}>
         <Header title="AquaNet" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0ea5e9" />
-          <Text style={styles.loadingText}>Loading data...</Text>
+          <Text style={styles.loadingText}>
+            {filterLoading ? 'Filtering data...' : 'Loading data...'}
+          </Text>
         </View>
       </View>
     );
@@ -258,6 +403,7 @@ const DataScreen = () => {
             onPageChange={onPageChange}
             onFilterChange={applyFilters}
             onDownloadCSV={downloadCSV}
+            clearFiltersTrigger={clearFiltersTrigger}
           />
         )}
       </View>

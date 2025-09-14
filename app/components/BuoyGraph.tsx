@@ -33,6 +33,8 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<TimePeriod>('All Time');
   const [showChartDropdown, setShowChartDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [showParameterDropdown, setShowParameterDropdown] = useState(false);
+  const [selectedParameter, setSelectedParameter] = useState<'pH' | 'temp' | 'tds'>('pH');
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   const chartOptions: { label: string; value: ChartType; icon: string; color: string }[] = [
@@ -53,12 +55,22 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
     { label: 'This Month', value: 'This Month', icon: 'calendar-outline' },
   ];
 
+  const parameterOptions: { label: string; value: 'pH' | 'temp' | 'tds'; icon: string; color: string }[] = [
+    { label: 'pH Levels', value: 'pH', icon: 'water', color: '#0ea5e9' },
+    { label: 'Temperature', value: 'temp', icon: 'thermometer', color: '#f59e0b' },
+    { label: 'TDS (Total Dissolved Solids)', value: 'tds', icon: 'analytics', color: '#22c55e' },
+  ];
+
   const getSelectedChartOption = () => {
     return chartOptions.find(option => option.value === selectedChart);
   };
 
   const getSelectedTimeOption = () => {
     return timePeriodOptions.find(option => option.value === selectedTimePeriod);
+  };
+
+  const getSelectedParameterOption = () => {
+    return parameterOptions.find(option => option.value === selectedParameter);
   };
 
   // Filter data based on selected time period
@@ -309,7 +321,7 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
     return (
       <View style={styles.chartContainer}>
         <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>{title}</Text>
+        <Text style={styles.chartTitle}>{title}</Text>
           <View style={styles.chartStats}>
             <Text style={styles.chartStatText}>
               Max: {maxValue.toFixed(1)} | Min: {minValue.toFixed(1)}
@@ -463,7 +475,7 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
     return (
       <View style={styles.chartContainer}>
         <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>{title}</Text>
+        <Text style={styles.chartTitle}>{title}</Text>
           <View style={styles.chartStats}>
             <Text style={styles.chartStatText}>
               Data Points: {pHData.length} | Period: {selectedTimePeriod}
@@ -621,6 +633,212 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
   };
 
   // Monthly Comparison Pie Chart Component
+  const MonthlyBarChart = ({ data, selectedParam }: { data: BuoyData[]; selectedParam: 'pH' | 'temp' | 'tds' }) => {
+    const monthlyData = useMemo(() => {
+      const grouped = data.reduce((acc, item) => {
+        try {
+          const date = new Date(`${item.Date} ${item.Time}`);
+          const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          
+          if (!acc[monthKey]) {
+            acc[monthKey] = {
+              month: monthKey,
+              pH: [],
+              temp: [],
+              tds: [],
+              count: 0
+            };
+          }
+          
+          const pH = parseFloat(item.pH);
+          const temp = parseFloat(item['Temp (°C)']);
+          const tds = parseFloat(item['TDS (ppm)']);
+          
+          if (!isNaN(pH)) acc[monthKey].pH.push(pH);
+          if (!isNaN(temp)) acc[monthKey].temp.push(temp);
+          if (!isNaN(tds)) acc[monthKey].tds.push(tds);
+          acc[monthKey].count++;
+          
+        } catch (error) {
+          console.warn('Error processing data for bar chart:', error);
+        }
+        return acc;
+      }, {} as Record<string, { month: string; pH: number[]; temp: number[]; tds: number[]; count: number }>);
+
+      return Object.values(grouped).map(month => ({
+        month: month.month,
+        avgPH: month.pH.length > 0 ? month.pH.reduce((a, b) => a + b, 0) / month.pH.length : 0,
+        avgTemp: month.temp.length > 0 ? month.temp.reduce((a, b) => a + b, 0) / month.temp.length : 0,
+        avgTDS: month.tds.length > 0 ? month.tds.reduce((a, b) => a + b, 0) / month.tds.length : 0,
+        count: month.count
+      })).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+    }, [data]);
+
+    if (monthlyData.length === 0) return null;
+
+    const maxPH = Math.max(...monthlyData.map(d => d.avgPH));
+    const maxTemp = Math.max(...monthlyData.map(d => d.avgTemp));
+    const maxTDS = Math.max(...monthlyData.map(d => d.avgTDS));
+
+    const getQualityColor = (value: number, type: 'pH' | 'temp' | 'tds') => {
+      if (type === 'pH') {
+        if (value >= 6.5 && value <= 8.5) return '#22c55e'; // Good
+        if (value >= 6.0 && value <= 9.0) return '#f59e0b'; // Fair
+        return '#ef4444'; // Poor
+      } else if (type === 'temp') {
+        if (value >= 20 && value <= 30) return '#22c55e'; // Good
+        if (value >= 15 && value <= 35) return '#f59e0b'; // Fair
+        return '#ef4444'; // Poor
+      } else if (type === 'tds') {
+        if (value <= 500) return '#22c55e'; // Good
+        if (value <= 1000) return '#f59e0b'; // Fair
+        return '#ef4444'; // Poor
+      }
+      return '#6b7280';
+    };
+
+    const getQualityLabel = (value: number, type: 'pH' | 'temp' | 'tds') => {
+      if (type === 'pH') {
+        if (value >= 6.5 && value <= 8.5) return 'Good';
+        if (value >= 6.0 && value <= 9.0) return 'Fair';
+        return 'Poor';
+      } else if (type === 'temp') {
+        if (value >= 20 && value <= 30) return 'Good';
+        if (value >= 15 && value <= 35) return 'Fair';
+        return 'Poor';
+      } else if (type === 'tds') {
+        if (value <= 500) return 'Good';
+        if (value <= 1000) return 'Fair';
+        return 'Poor';
+      }
+      return 'Unknown';
+    };
+
+    const getParameterData = (month: any) => {
+      switch (selectedParam) {
+        case 'pH':
+          return {
+            value: month.avgPH,
+            maxValue: maxPH,
+            label: 'pH',
+            unit: '',
+            color: getQualityColor(month.avgPH, 'pH'),
+            quality: getQualityLabel(month.avgPH, 'pH'),
+            formattedValue: month.avgPH.toFixed(1)
+          };
+        case 'temp':
+          return {
+            value: month.avgTemp,
+            maxValue: maxTemp,
+            label: 'Temp',
+            unit: '°C',
+            color: getQualityColor(month.avgTemp, 'temp'),
+            quality: getQualityLabel(month.avgTemp, 'temp'),
+            formattedValue: month.avgTemp.toFixed(1)
+          };
+        case 'tds':
+          return {
+            value: month.avgTDS,
+            maxValue: maxTDS,
+            label: 'TDS',
+            unit: ' ppm',
+            color: getQualityColor(month.avgTDS, 'tds'),
+            quality: getQualityLabel(month.avgTDS, 'tds'),
+            formattedValue: month.avgTDS.toFixed(0)
+          };
+        default:
+          return {
+            value: month.avgPH,
+            maxValue: maxPH,
+            label: 'pH',
+            unit: '',
+            color: getQualityColor(month.avgPH, 'pH'),
+            quality: getQualityLabel(month.avgPH, 'pH'),
+            formattedValue: month.avgPH.toFixed(1)
+          };
+      }
+    };
+
+    const selectedOption = parameterOptions.find(opt => opt.value === selectedParam);
+
+    return (
+      <View style={styles.barChartContainer}>
+        <Text style={styles.barChartTitle}>Monthly {selectedOption?.label} Comparison</Text>
+        <Text style={styles.barChartSubtitle}>Average values and quality ratings by month</Text>
+        
+        {/* Parameter Selection Dropdown */}
+        <View style={styles.barChartDropdownContainer}>
+          <View style={styles.dropdownContainer}>
+            <Text style={styles.dropdownLabel}>Parameter</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowParameterDropdown(true)}
+            >
+              <View style={styles.dropdownContent}>
+                <Ionicons 
+                  name={getSelectedParameterOption()?.icon as any} 
+                  size={getResponsiveIconSize(18)} 
+                  color={getSelectedParameterOption()?.color || "#0ea5e9"} 
+                />
+                <Text style={styles.dropdownText}>{getSelectedParameterOption()?.label}</Text>
+              </View>
+              <Ionicons name="chevron-down" size={getResponsiveIconSize(16)} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.barChartScroll}>
+          <View style={styles.barChartContent}>
+            {monthlyData.map((month, index) => {
+              const paramData = getParameterData(month);
+              return (
+                <View key={month.month} style={styles.barChartMonth}>
+                  <Text style={styles.barChartMonthLabel}>{month.month}</Text>
+                  
+                  {/* Single Parameter Bar */}
+                  <View style={styles.barChartBarContainer}>
+                    <Text style={styles.barChartBarLabel}>{paramData.label}</Text>
+                    <View style={styles.barChartBar}>
+                      <View 
+                        style={[
+                          styles.barChartBarFill,
+                          { 
+                            height: `${Math.max(5, (paramData.value / paramData.maxValue) * 100)}%`,
+                            backgroundColor: paramData.color
+                          }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={styles.barChartBarValue}>{paramData.formattedValue}{paramData.unit}</Text>
+                    <Text style={[styles.barChartQuality, { color: paramData.color }]}>
+                      {paramData.quality}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        {/* Legend */}
+        <View style={styles.barChartLegend}>
+          <View style={styles.barChartLegendItem}>
+            <View style={[styles.barChartLegendDot, { backgroundColor: '#22c55e' }]} />
+            <Text style={styles.barChartLegendText}>Good Quality</Text>
+          </View>
+          <View style={styles.barChartLegendItem}>
+            <View style={[styles.barChartLegendDot, { backgroundColor: '#f59e0b' }]} />
+            <Text style={styles.barChartLegendText}>Fair Quality</Text>
+          </View>
+          <View style={styles.barChartLegendItem}>
+            <View style={[styles.barChartLegendDot, { backgroundColor: '#ef4444' }]} />
+            <Text style={styles.barChartLegendText}>Poor Quality</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   const MonthlyPieChart = ({ data }: { data: BuoyData[] }) => {
     const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
     
@@ -733,10 +951,7 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
                 <View style={styles.pieLegendText}>
                   <Text style={styles.pieLegendMonth}>{slice.month}</Text>
                   <Text style={styles.pieLegendDetails}>
-                    {slice.count} records ({slice.percentage}%)
-                  </Text>
-                  <Text style={styles.pieLegendAverages}>
-                    pH: {slice.avgpH} | Temp: {slice.avgTemp}°C | TDS: {slice.avgTDS}ppm
+                    {slice.percentage}%
                   </Text>
                 </View>
               </View>
@@ -809,14 +1024,14 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
       <View style={styles.controlPanel}>
         <View style={styles.controlRow}>
           {/* Chart Type Selector */}
-          <View style={styles.dropdownContainer}>
+      <View style={styles.dropdownContainer}>
             <Text style={styles.dropdownLabel}>Chart Type</Text>
-            <TouchableOpacity
-              style={styles.dropdownButton}
+        <TouchableOpacity
+          style={styles.dropdownButton}
               onPress={() => setShowChartDropdown(true)}
-            >
-              <View style={styles.dropdownContent}>
-                <Ionicons 
+        >
+          <View style={styles.dropdownContent}>
+            <Ionicons 
                   name={getSelectedChartOption()?.icon as any} 
                   size={getResponsiveIconSize(18)} 
                   color={getSelectedChartOption()?.color || "#0ea5e9"} 
@@ -838,12 +1053,12 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
                 <Ionicons 
                   name={getSelectedTimeOption()?.icon as any} 
                   size={getResponsiveIconSize(18)} 
-                  color="#0ea5e9" 
-                />
+              color="#0ea5e9" 
+            />
                 <Text style={styles.dropdownText}>{getSelectedTimeOption()?.label}</Text>
-              </View>
+          </View>
               <Ionicons name="chevron-down" size={getResponsiveIconSize(16)} color="#64748b" />
-            </TouchableOpacity>
+        </TouchableOpacity>
           </View>
         </View>
 
@@ -867,6 +1082,9 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
 
       {/* Monthly Comparison Pie Chart */}
       <MonthlyPieChart data={data} />
+
+      {/* Monthly Quality Comparison Bar Chart */}
+      <MonthlyBarChart data={data} selectedParam={selectedParameter} />
 
       {/* Chart Type Dropdown Modal */}
       <Modal
@@ -952,10 +1170,53 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
             ))}
           </View>
         </TouchableOpacity>
-      </Modal>
-    </ScrollView>
-  );
-};
+        </Modal>
+
+        {/* Parameter Dropdown Modal */}
+        <Modal
+          visible={showParameterDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowParameterDropdown(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowParameterDropdown(false)}
+          >
+            <View style={styles.dropdownModal}>
+              <Text style={styles.modalTitle}>Select Parameter</Text>
+              {parameterOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.dropdownOption,
+                    selectedParameter === option.value && styles.selectedOption
+                  ]}
+                  onPress={() => {
+                    setSelectedParameter(option.value);
+                    setShowParameterDropdown(false);
+                  }}
+                >
+                  <Ionicons 
+                    name={option.icon as any} 
+                    size={getResponsiveIconSize(20)} 
+                    color={selectedParameter === option.value ? "#ffffff" : option.color} 
+                  />
+                  <Text style={[
+                    styles.dropdownOptionText,
+                    selectedParameter === option.value && styles.selectedOptionText
+                  ]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </ScrollView>
+    );
+  };
 
 const styles = StyleSheet.create({
   fullscreenContainer: {
@@ -971,6 +1232,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: Math.max(8, Dimensions.get('window').height * 0.01),
+  },
+  parameterSelectorContainer: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: Math.max(12, Dimensions.get('window').width * 0.03),
+    paddingVertical: Math.max(8, Dimensions.get('window').height * 0.01),
   },
   dropdownContainer: {
     flex: 1,
@@ -1194,6 +1460,106 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#9ca3af',
     lineHeight: Math.max(12, Dimensions.get('window').width * 0.03),
+  },
+  // Bar Chart Styles
+  barChartContainer: {
+    backgroundColor: '#ffffff',
+    padding: Math.max(12, Dimensions.get('window').width * 0.03),
+    marginTop: Math.max(8, Dimensions.get('window').height * 0.01),
+    borderTopWidth: 0.5,
+    borderTopColor: '#e5e7eb',
+  },
+  barChartTitle: {
+    fontSize: Math.max(14, Dimensions.get('window').width * 0.035),
+    fontWeight: '600',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginBottom: Math.max(4, Dimensions.get('window').height * 0.005),
+  },
+  barChartSubtitle: {
+    fontSize: Math.max(10, Dimensions.get('window').width * 0.025),
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: Math.max(12, Dimensions.get('window').height * 0.015),
+  },
+  barChartDropdownContainer: {
+    alignItems: 'center',
+    marginBottom: Math.max(12, Dimensions.get('window').height * 0.015),
+  },
+  barChartScroll: {
+    marginBottom: Math.max(12, Dimensions.get('window').height * 0.015),
+  },
+  barChartContent: {
+    flexDirection: 'row',
+    paddingHorizontal: Math.max(8, Dimensions.get('window').width * 0.02),
+  },
+  barChartMonth: {
+    alignItems: 'center',
+    marginHorizontal: Math.max(8, Dimensions.get('window').width * 0.02),
+    minWidth: Math.max(60, Dimensions.get('window').width * 0.15),
+  },
+  barChartMonthLabel: {
+    fontSize: Math.max(10, Dimensions.get('window').width * 0.025),
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: Math.max(8, Dimensions.get('window').height * 0.01),
+  },
+  barChartBarContainer: {
+    alignItems: 'center',
+    marginBottom: Math.max(8, Dimensions.get('window').height * 0.01),
+  },
+  barChartBarLabel: {
+    fontSize: Math.max(8, Dimensions.get('window').width * 0.02),
+    fontWeight: '500',
+    color: '#6b7280',
+    marginBottom: Math.max(4, Dimensions.get('window').height * 0.005),
+  },
+  barChartBar: {
+    width: Math.max(20, Dimensions.get('window').width * 0.05),
+    height: Math.max(60, Dimensions.get('window').height * 0.08),
+    backgroundColor: '#f3f4f6',
+    borderRadius: Math.max(2, Dimensions.get('window').width * 0.005),
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barChartBarFill: {
+    width: '100%',
+    borderRadius: Math.max(2, Dimensions.get('window').width * 0.005),
+    minHeight: Math.max(2, Dimensions.get('window').height * 0.002),
+  },
+  barChartBarValue: {
+    fontSize: Math.max(8, Dimensions.get('window').width * 0.02),
+    fontWeight: '600',
+    color: '#1f2937',
+    marginTop: Math.max(2, Dimensions.get('window').height * 0.002),
+    textAlign: 'center',
+  },
+  barChartQuality: {
+    fontSize: Math.max(7, Dimensions.get('window').width * 0.018),
+    fontWeight: '500',
+    marginTop: Math.max(1, Dimensions.get('window').height * 0.001),
+    textAlign: 'center',
+  },
+  barChartLegend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: Math.max(12, Dimensions.get('window').width * 0.03),
+  },
+  barChartLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Math.max(4, Dimensions.get('window').width * 0.01),
+  },
+  barChartLegendDot: {
+    width: Math.max(8, Dimensions.get('window').width * 0.02),
+    height: Math.max(8, Dimensions.get('window').width * 0.02),
+    borderRadius: Math.max(4, Dimensions.get('window').width * 0.01),
+  },
+  barChartLegendText: {
+    fontSize: Math.max(9, Dimensions.get('window').width * 0.022),
+    color: '#6b7280',
+    fontWeight: '500',
   },
 });
 

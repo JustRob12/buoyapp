@@ -24,6 +24,7 @@ interface DataTableProps {
   onPageChange: (page: number) => void;
   onFilterChange?: (filters: { month?: string; year?: string }) => void;
   onDownloadCSV?: () => void;
+  clearFiltersTrigger?: number; // Add trigger to clear filters externally
 }
 
 const DataTable: React.FC<DataTableProps> = ({
@@ -36,6 +37,7 @@ const DataTable: React.FC<DataTableProps> = ({
   onPageChange,
   onFilterChange,
   onDownloadCSV,
+  clearFiltersTrigger,
 }) => {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -133,6 +135,13 @@ const DataTable: React.FC<DataTableProps> = ({
     }
     setShowFilterModal(false);
   };
+
+  // Watch for external clear trigger
+  useEffect(() => {
+    if (clearFiltersTrigger && clearFiltersTrigger > 0) {
+      clearFilters();
+    }
+  }, [clearFiltersTrigger]);
   const formatDateTime = (date: string, time: string) => {
     try {
       const dateStr = date.trim();
