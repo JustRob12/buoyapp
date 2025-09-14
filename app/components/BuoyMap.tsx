@@ -135,7 +135,7 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={styles.fullscreenContainer}>
         <ActivityIndicator size="large" color="#0ea5e9" />
         <Text style={styles.loadingText}>Loading map data...</Text>
       </View>
@@ -144,7 +144,7 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={styles.fullscreenContainer}>
         <Ionicons name="warning" size={48} color="#ef4444" />
         <Text style={styles.errorText}>{error}</Text>
       </View>
@@ -153,7 +153,7 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
 
   if (coordinates.length === 0) {
     return (
-      <View style={styles.noDataContainer}>
+      <View style={styles.fullscreenContainer}>
         <Ionicons name="map" size={48} color="#64748b" />
         <Text style={styles.noDataText}>No location data available</Text>
       </View>
@@ -161,19 +161,18 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
   }
 
   return (
-    <View style={styles.container}>
-      <MapView
-        style={styles.map}
-        initialRegion={{
-          ...getMapCenter(),
-          latitudeDelta: 8.0, // Wider view to show more of Philippines
-          longitudeDelta: 8.0, // Wider view to show more of Philippines
-        }}
-        showsUserLocation={true}
-        showsMyLocationButton={true}
-        showsCompass={true}
-        showsScale={true}
-      >
+    <MapView
+      style={styles.fullscreenMap}
+      initialRegion={{
+        ...getMapCenter(),
+        latitudeDelta: 8.0, // Wider view to show more of Philippines
+        longitudeDelta: 8.0, // Wider view to show more of Philippines
+      }}
+      showsUserLocation={true}
+      showsMyLocationButton={true}
+      showsCompass={true}
+      showsScale={true}
+    >
         {/* Buoy Markers */}
         {coordinates.map((coord, index) => (
           <Marker
@@ -219,33 +218,14 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData }) => {
             </View>
           </Marker>
         ))}
-      </MapView>
-
-     
-      {/* <View style={styles.legendContainer}>
-        <Text style={styles.legendTitle}>Buoy Locations</Text>
-        <View style={styles.legendItems}>
-          {coordinates.slice(0, 5).map((coord) => (
-            <View key={coord.id} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: getBuoyColor(coord.buoy) }]} />
-              <Text style={styles.legendText}>{coord.buoy}</Text>
-            </View>
-          ))}
-        </View>
-        {coordinates.length > 5 && (
-          <Text style={styles.legendNote}>+{coordinates.length - 5} more buoys</Text>
-        )}
-      </View> */}
-    </View>
+    </MapView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
+  fullscreenMap: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
   },
   markerContainer: {
     width: 40,
@@ -325,23 +305,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#000000',
   },
-  loadingContainer: {
-    flex: 1,
+  fullscreenContainer: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   loadingText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#64748b',
     marginTop: 16,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   errorText: {
     fontSize: 16,
@@ -350,12 +325,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
     paddingHorizontal: 20,
-  },
-  noDataContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   noDataText: {
     fontSize: 16,
