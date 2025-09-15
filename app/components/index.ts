@@ -7,3 +7,6 @@ export { default as BuoyEchoAnimation } from './BuoyEchoAnimation';
 export { default as BuoyDropdown } from './BuoyDropdown';
 export { default as BuoyCardList } from './BuoyCardList';
 export { default as DataTable } from './DataTable';
+export { default as AuthNavigator } from './AuthNavigator';
+export { default as ProfileDropdown } from './ProfileDropdown';
+export { default as ProfileModal } from './ProfileModal';

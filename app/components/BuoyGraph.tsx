@@ -1206,17 +1206,17 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
                   <Text style={[
                     styles.dropdownOptionText,
                     selectedParameter === option.value && styles.selectedOptionText
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        </Modal>
-      </ScrollView>
-    );
-  };
+                ]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
   fullscreenContainer: {

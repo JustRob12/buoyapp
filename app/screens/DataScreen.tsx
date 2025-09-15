@@ -186,7 +186,7 @@ const DataScreen = () => {
       console.error('Error during refresh:', error);
       setError('Failed to refresh data. Please try again.');
     } finally {
-      setRefreshing(false);
+    setRefreshing(false);
     }
   };
 
