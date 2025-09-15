@@ -6,7 +6,7 @@ CREATE TABLE public.user_profiles (
     id UUID REFERENCES auth.users(id) PRIMARY KEY,
     fullname TEXT NOT NULL,
     username TEXT UNIQUE NOT NULL,
-    role INTEGER DEFAULT 1 CHECK (role IN (0, 1)), -- 0 = admin, 1 = researcher
+    role INTEGER DEFAULT 2 CHECK (role IN (0, 1, 2)), -- 0 = admin, 1 = researcher, 2 = pending
     profile_picture TEXT, -- URL to profile picture
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -46,7 +46,7 @@ BEGIN
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'fullname', ''),
         COALESCE(NEW.raw_user_meta_data->>'username', ''),
-        COALESCE((NEW.raw_user_meta_data->>'role')::INTEGER, 1) -- Default to researcher
+        COALESCE((NEW.raw_user_meta_data->>'role')::INTEGER, 2) -- Default to pending
     );
     RETURN NEW;
 END;

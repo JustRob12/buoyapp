@@ -18,7 +18,7 @@ export interface UserProfile {
   id: string;
   fullname: string;
   username: string;
-  role: number; // 0 = admin, 1 = researcher
+  role: number; // 0 = admin, 1 = researcher, 2 = pending
   profile_picture?: string;
   created_at: string;
   updated_at: string;
@@ -29,7 +29,7 @@ export interface RegisterData {
   password: string;
   fullname: string;
   username: string;
-  role?: number; // Optional, defaults to 1 (researcher)
+  role?: number; // Optional, defaults to 2 (pending)
 }
 
 export interface LoginData {
@@ -41,7 +41,7 @@ class AuthService {
   // Register new user
   async register(data: RegisterData) {
     try {
-      const { email, password, fullname, username, role = 1 } = data;
+      const { email, password, fullname, username, role = 2 } = data;
 
       // Check if email is already taken (since email = username)
       const { data: existingUser } = await supabase
@@ -183,6 +183,66 @@ class AuthService {
       return profile?.role === 0;
     } catch (error) {
       console.error('Check admin error:', error);
+      return false;
+    }
+  }
+
+  // Admin methods
+  // Get all pending users (role = 2)
+  async getPendingUsers(): Promise<UserProfile[]> {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('role', 2)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Get pending users error:', error);
+      return [];
+    }
+  }
+
+  // Approve user (change role from 2 to 1)
+  async approveUser(userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ role: 1 })
+        .eq('id', userId);
+
+      if (error) {
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Approve user error:', error);
+      return false;
+    }
+  }
+
+  // Reject/delete pending user
+  async rejectUser(userId: string): Promise<boolean> {
+    try {
+      // First delete the profile
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Reject user error:', error);
       return false;
     }
   }

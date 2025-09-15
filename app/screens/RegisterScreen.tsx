@@ -89,12 +89,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
         password,
         fullname: fullname.trim(),
         username: email.trim(), // Use email as username
-        role: 1, // Default to researcher
+        role: 2, // Default to pending
       });
 
       Alert.alert(
         'Registration Successful!', 
-        'Your account has been created successfully. You can now sign in.',
+        'Your account has been created successfully. Please wait for admin approval before you can access the app.',
         [{ text: 'OK', onPress: onRegisterSuccess }]
       );
     } catch (error: any) {

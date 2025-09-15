@@ -6,6 +6,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import TabNavigator from './navigation/TabNavigator';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
 import AuthNavigator from './components/AuthNavigator';
+import PendingApprovalScreen from './screens/PendingApprovalScreen';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -29,6 +30,13 @@ const AppContent: React.FC = () => {
     return <AuthNavigator onAuthSuccess={() => setShowApp(true)} />;
   }
 
+  // Check user role and show appropriate screen
+  if (user.profile?.role === 2) {
+    // User is pending approval
+    return <PendingApprovalScreen />;
+  }
+
+  // User is approved (role 0 = admin, role 1 = researcher)
   return (
     <NavigationContainer>
       <StatusBar style="dark" backgroundColor="#ffffff" />

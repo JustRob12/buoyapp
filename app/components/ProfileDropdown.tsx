@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileModal from './ProfileModal';
+import ManageAccountsScreen from '../screens/ManageAccountsScreen';
 
 interface ProfileDropdownProps {}
 
@@ -20,6 +21,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
   const { user, logout } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showManageAccounts, setShowManageAccounts] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -62,6 +64,11 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
   const handleProfilePress = () => {
     hideDropdown();
     setShowProfileModal(true);
+  };
+
+  const handleManageAccountsPress = () => {
+    hideDropdown();
+    setShowManageAccounts(true);
   };
 
   const handleLogout = () => {
@@ -178,6 +185,18 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
               <Text style={styles.menuText}>Profile</Text>
             </TouchableOpacity>
 
+            {/* Admin only - Manage Accounts */}
+            {user?.profile?.role === 0 && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleManageAccountsPress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="people-outline" size={20} color="#64748b" />
+                <Text style={styles.menuText}>Manage Accounts</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.menuItem, styles.logoutItem]}
               onPress={handleLogout}
@@ -194,6 +213,18 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
         visible={showProfileModal}
         onClose={() => setShowProfileModal(false)}
       />
+
+      {/* Admin only - Manage Accounts Modal */}
+      {user?.profile?.role === 0 && (
+        <Modal
+          visible={showManageAccounts}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowManageAccounts(false)}
+        >
+          <ManageAccountsScreen onClose={() => setShowManageAccounts(false)} />
+        </Modal>
+      )}
     </>
   );
 };
