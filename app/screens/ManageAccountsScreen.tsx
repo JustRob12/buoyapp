@@ -10,6 +10,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Image,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import authService, { UserProfile } from '../services/authService';
@@ -23,6 +25,9 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
+  const [rejectionModalVisible, setRejectionModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
     loadPendingUsers();
@@ -61,8 +66,8 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
               const success = await authService.approveUser(user.id);
               if (success) {
                 Alert.alert('Success', `${user.fullname} has been approved!`);
-                // Remove from pending list
-                setPendingUsers(prev => prev.filter(u => u.id !== user.id));
+                // Refresh the pending users list to get updated data from database
+                await loadPendingUsers();
               } else {
                 Alert.alert('Error', 'Failed to approve user');
               }
@@ -78,36 +83,44 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
     );
   };
 
-  const handleRejectUser = async (user: UserProfile) => {
-    Alert.alert(
-      'Reject User',
-      `Are you sure you want to reject ${user.fullname}? This will permanently delete their account.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async () => {
-            setProcessingUserId(user.id);
-            try {
-              const success = await authService.rejectUser(user.id);
-              if (success) {
-                Alert.alert('User Rejected', `${user.fullname}'s account has been deleted.`);
-                // Remove from pending list
-                setPendingUsers(prev => prev.filter(u => u.id !== user.id));
-              } else {
-                Alert.alert('Error', 'Failed to reject user');
-              }
-            } catch (error) {
-              console.error('Error rejecting user:', error);
-              Alert.alert('Error', 'Failed to reject user');
-            } finally {
-              setProcessingUserId(null);
-            }
-          },
-        },
-      ]
-    );
+  const handleRejectUser = (user: UserProfile) => {
+    setSelectedUser(user);
+    setRejectionReason('');
+    setRejectionModalVisible(true);
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!selectedUser || !rejectionReason.trim()) {
+      Alert.alert('Error', 'Please provide a reason for rejection.');
+      return;
+    }
+
+    setProcessingUserId(selectedUser.id);
+    setRejectionModalVisible(false);
+    
+    try {
+      const success = await authService.rejectUser(selectedUser.id, rejectionReason.trim());
+      if (success) {
+        Alert.alert('User Rejected', `${selectedUser.fullname}'s account has been rejected. They can try again or delete their account.`);
+        // Refresh the pending users list to get updated data from database
+        await loadPendingUsers();
+      } else {
+        Alert.alert('Error', 'Failed to reject user');
+      }
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      Alert.alert('Error', 'Failed to reject user');
+    } finally {
+      setProcessingUserId(null);
+      setSelectedUser(null);
+      setRejectionReason('');
+    }
+  };
+
+  const handleCancelRejection = () => {
+    setRejectionModalVisible(false);
+    setSelectedUser(null);
+    setRejectionReason('');
   };
 
   const formatDate = (dateString: string) => {
@@ -235,6 +248,55 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
           />
         )}
       </View>
+
+      {/* Rejection Reason Modal */}
+      <Modal
+        visible={rejectionModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelRejection}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Reject User Account</Text>
+            <Text style={styles.modalSubtitle}>
+              Please provide a reason for rejecting {selectedUser?.fullname}'s account:
+            </Text>
+            
+            <TextInput
+              style={styles.reasonInput}
+              placeholder="Enter rejection reason..."
+              value={rejectionReason}
+              onChangeText={setRejectionReason}
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelRejection}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleConfirmRejection}
+                disabled={!rejectionReason.trim()}
+              >
+                <Text style={[
+                  styles.confirmButtonText,
+                  { opacity: rejectionReason.trim() ? 1 : 0.5 }
+                ]}>
+                  Reject Account
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -242,32 +304,32 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#f1f5f9',
   },
   closeButton: {
-    padding: 8,
+    padding: 4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#0f172a',
   },
   placeholder: {
-    width: 40,
+    width: 32,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -280,27 +342,19 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   statsContainer: {
-    paddingVertical: 16,
+    paddingVertical: 20,
   },
   statCard: {
-    backgroundColor: '#ffffff',
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   statNumber: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#f59e0b',
+    color: '#0f172a',
     marginBottom: 4,
   },
   statLabel: {
@@ -315,9 +369,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1e293b',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#0f172a',
     marginTop: 16,
     marginBottom: 8,
   },
@@ -331,39 +385,31 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   userCard: {
-    backgroundColor: '#ffffff',
-    marginVertical: 6,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    paddingVertical: 20,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   userInfo: {
     flexDirection: 'row',
     marginBottom: 16,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#e2e8f0',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   avatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#475569',
   },
@@ -371,9 +417,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#0f172a',
     marginBottom: 4,
   },
   userEmail: {
@@ -396,11 +442,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 6,
     gap: 8,
   },
   approveButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#0f172a',
   },
   approveButtonText: {
     color: '#ffffff',
@@ -408,14 +454,82 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   rejectButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
   },
   rejectButtonText: {
-    color: '#ef4444',
+    color: '#64748b',
     fontWeight: '600',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0f172a',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    padding: 16,
+    fontSize: 16,
+    color: '#0f172a',
+    backgroundColor: '#ffffff',
+    marginBottom: 24,
+    minHeight: 100,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  confirmButton: {
+    backgroundColor: '#0f172a',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
 

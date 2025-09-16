@@ -20,6 +20,9 @@ export interface UserProfile {
   username: string;
   role: number; // 0 = admin, 1 = researcher, 2 = pending
   profile_picture?: string;
+  rejection_status?: boolean; // TRUE if account was rejected
+  rejection_reason?: string; // Reason for rejection
+  rejection_date?: string; // When the account was rejected
   created_at: string;
   updated_at: string;
 }
@@ -188,13 +191,14 @@ class AuthService {
   }
 
   // Admin methods
-  // Get all pending users (role = 2)
+  // Get all pending users (role = 2 and not rejected)
   async getPendingUsers(): Promise<UserProfile[]> {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('role', 2)
+        .or('rejection_status.is.null,rejection_status.eq.false')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -227,8 +231,31 @@ class AuthService {
     }
   }
 
-  // Reject/delete pending user
-  async rejectUser(userId: string): Promise<boolean> {
+  // Reject pending user (mark as rejected instead of deleting)
+  async rejectUser(userId: string, reason: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ 
+          rejection_status: true,
+          rejection_reason: reason,
+          rejection_date: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) {
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Reject user error:', error);
+      return false;
+    }
+  }
+
+  // Delete user account permanently (for "Delete My Account" option)
+  async deleteUserAccount(userId: string): Promise<boolean> {
     try {
       // First delete the profile
       const { error: profileError } = await supabase
@@ -242,7 +269,30 @@ class AuthService {
 
       return true;
     } catch (error) {
-      console.error('Reject user error:', error);
+      console.error('Delete user account error:', error);
+      return false;
+    }
+  }
+
+  // Reset rejection status (for "Try Again" option)
+  async resetRejectionStatus(userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ 
+          rejection_status: false,
+          rejection_reason: null,
+          rejection_date: null
+        })
+        .eq('id', userId);
+
+      if (error) {
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Reset rejection status error:', error);
       return false;
     }
   }

@@ -8,6 +8,9 @@ CREATE TABLE public.user_profiles (
     username TEXT UNIQUE NOT NULL,
     role INTEGER DEFAULT 2 CHECK (role IN (0, 1, 2)), -- 0 = admin, 1 = researcher, 2 = pending
     profile_picture TEXT, -- URL to profile picture
+    rejection_status BOOLEAN DEFAULT FALSE, -- TRUE if account was rejected
+    rejection_reason TEXT, -- Reason for rejection
+    rejection_date TIMESTAMP WITH TIME ZONE, -- When the account was rejected
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

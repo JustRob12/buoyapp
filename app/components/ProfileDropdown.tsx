@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileModal from './ProfileModal';
+import authService from '../services/authService';
 import ManageAccountsScreen from '../screens/ManageAccountsScreen';
 
 interface ProfileDropdownProps {}
@@ -22,10 +23,27 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showManageAccounts, setShowManageAccounts] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   const { width: screenWidth } = Dimensions.get('window');
+
+  // Load pending count for admin users
+  useEffect(() => {
+    if (user?.profile?.role === 0) {
+      loadPendingCount();
+    }
+  }, [user?.profile?.role]);
+
+  const loadPendingCount = async () => {
+    try {
+      const pendingUsers = await authService.getPendingUsers();
+      setPendingCount(pendingUsers.length);
+    } catch (error) {
+      console.error('Error loading pending count:', error);
+    }
+  };
 
   const showDropdown = () => {
     setIsVisible(true);
@@ -71,6 +89,14 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
     setShowManageAccounts(true);
   };
 
+  const handleCloseManageAccounts = () => {
+    setShowManageAccounts(false);
+    // Refresh pending count when modal is closed
+    if (user?.profile?.role === 0) {
+      loadPendingCount();
+    }
+  };
+
   const handleLogout = () => {
     hideDropdown();
     Alert.alert(
@@ -108,18 +134,28 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
         onPress={showDropdown}
         activeOpacity={0.7}
       >
-        {user?.profile?.profile_picture ? (
-          <Image
-            source={{ uri: user.profile.profile_picture }}
-            style={styles.profileImage}
-          />
-        ) : (
-          <View style={styles.defaultProfile}>
-            <Text style={styles.initials}>
-              {user?.profile?.fullname ? getInitials(user.profile.fullname) : 'U'}
-            </Text>
-          </View>
-        )}
+        <View style={styles.profileImageContainer}>
+          {user?.profile?.profile_picture ? (
+            <Image
+              source={{ uri: user.profile.profile_picture }}
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.defaultProfile}>
+              <Text style={styles.initials}>
+                {user?.profile?.fullname ? getInitials(user.profile.fullname) : 'U'}
+              </Text>
+            </View>
+          )}
+          {/* Notification badge for admin users */}
+          {user?.profile?.role === 0 && pendingCount > 0 && (
+            <View style={styles.profileNotificationBadge}>
+              <Text style={styles.profileBadgeText}>
+                {pendingCount > 99 ? '99+' : pendingCount}
+              </Text>
+            </View>
+          )}
+        </View>
         <Ionicons name="chevron-down" size={16} color="#64748b" style={styles.chevron} />
       </TouchableOpacity>
 
@@ -181,19 +217,33 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
               onPress={handleProfilePress}
               activeOpacity={0.7}
             >
-              <Ionicons name="person-outline" size={20} color="#64748b" />
-              <Text style={styles.menuText}>Profile</Text>
+              <View style={styles.menuItemContent}>
+                <Ionicons name="person-outline" size={20} color="#64748b" />
+                <Text style={styles.menuText}>Profile</Text>
+              </View>
             </TouchableOpacity>
 
             {/* Admin only - Manage Accounts */}
             {user?.profile?.role === 0 && (
               <TouchableOpacity
-                style={styles.menuItem}
+                style={[
+                  styles.menuItem,
+                  pendingCount > 0 && styles.menuItemWithBadge
+                ]}
                 onPress={handleManageAccountsPress}
                 activeOpacity={0.7}
               >
-                <Ionicons name="people-outline" size={20} color="#64748b" />
-                <Text style={styles.menuText}>Manage Accounts</Text>
+                <View style={styles.menuItemContent}>
+                  <Ionicons name="people-outline" size={20} color="#64748b" />
+                  <Text style={styles.menuText}>Manage Accounts</Text>
+                </View>
+                {pendingCount > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.badgeText}>
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             )}
 
@@ -202,8 +252,10 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
               onPress={handleLogout}
               activeOpacity={0.7}
             >
-              <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-              <Text style={[styles.menuText, styles.logoutText]}>Logout</Text>
+              <View style={styles.menuItemContent}>
+                <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+                <Text style={[styles.menuText, styles.logoutText]}>Logout</Text>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>
@@ -220,9 +272,9 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
           visible={showManageAccounts}
           animationType="slide"
           presentationStyle="pageSheet"
-          onRequestClose={() => setShowManageAccounts(false)}
+          onRequestClose={handleCloseManageAccounts}
         >
-          <ManageAccountsScreen onClose={() => setShowManageAccounts(false)} />
+          <ManageAccountsScreen onClose={handleCloseManageAccounts} />
         </Modal>
       )}
     </>
@@ -239,6 +291,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
+  },
+  profileImageContainer: {
+    position: 'relative',
   },
   profileImage: {
     width: 32,
@@ -257,6 +312,26 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  profileNotificationBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  profileBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   chevron: {
     marginLeft: 6,
@@ -345,11 +420,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  menuItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  menuItemWithBadge: {
+    justifyContent: 'space-between',
+  },
   menuText: {
     marginLeft: 12,
     fontSize: 16,
     fontWeight: '500',
     color: '#1e293b',
+  },
+  notificationBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   logoutItem: {
     borderBottomLeftRadius: 16,

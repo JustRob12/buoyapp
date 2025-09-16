@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   Animated,
   Dimensions,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import authService from '../services/authService';
 
 const PendingApprovalScreen: React.FC = () => {
-  const { logout } = useAuth();
+  const { logout, user, refreshUserProfile } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -21,6 +23,9 @@ const PendingApprovalScreen: React.FC = () => {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const isSmallScreen = screenHeight < 700;
   const isVerySmallScreen = screenHeight < 600;
+
+  // Check if user is rejected
+  const isRejected = user?.profile?.rejection_status === true;
 
   useEffect(() => {
     Animated.parallel([
@@ -49,6 +54,66 @@ const PendingApprovalScreen: React.FC = () => {
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  const handleTryAgain = async () => {
+    if (!user?.id) return;
+    
+    Alert.alert(
+      'Try Again',
+      'Are you sure you want to resubmit your account for approval?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Resubmit',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const success = await authService.resetRejectionStatus(user.id);
+              if (success) {
+                await refreshUserProfile();
+                Alert.alert('Success', 'Your account has been resubmitted for approval.');
+              } else {
+                Alert.alert('Error', 'Failed to resubmit your account. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error resubmitting account:', error);
+              Alert.alert('Error', 'Failed to resubmit your account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.id) return;
+    
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const success = await authService.deleteUserAccount(user.id);
+              if (success) {
+                await logout();
+                Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
+              } else {
+                Alert.alert('Error', 'Failed to delete your account. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error deleting account:', error);
+              Alert.alert('Error', 'Failed to delete your account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -87,10 +152,11 @@ const PendingApprovalScreen: React.FC = () => {
                 width: isVerySmallScreen ? 70 : isSmallScreen ? 80 : 100,
                 height: isVerySmallScreen ? 70 : isSmallScreen ? 80 : 100,
                 borderRadius: isVerySmallScreen ? 35 : isSmallScreen ? 40 : 50,
+                backgroundColor: isRejected ? '#ef4444' : '#0ea5e9',
               }
             ]}>
               <Ionicons 
-                name="time" 
+                name={isRejected ? "close-circle" : "time"} 
                 size={isVerySmallScreen ? 40 : isSmallScreen ? 48 : 64} 
                 color="#ffffff" 
               />
@@ -101,6 +167,7 @@ const PendingApprovalScreen: React.FC = () => {
                 width: isVerySmallScreen ? 90 : isSmallScreen ? 100 : 120,
                 height: isVerySmallScreen ? 90 : isSmallScreen ? 100 : 120,
                 borderRadius: isVerySmallScreen ? 45 : isSmallScreen ? 50 : 60,
+                borderColor: isRejected ? '#ef4444' : '#0ea5e9',
               }
             ]} />
           </View>
@@ -113,7 +180,7 @@ const PendingApprovalScreen: React.FC = () => {
               marginBottom: isVerySmallScreen ? 4 : 8,
             }
           ]}>
-            Account Under Review
+            {isRejected ? 'Account Not Approved' : 'Account Under Review'}
           </Text>
           
           <Text style={[
@@ -123,7 +190,10 @@ const PendingApprovalScreen: React.FC = () => {
               marginBottom: isVerySmallScreen ? 20 : isSmallScreen ? 24 : 32,
             }
           ]}>
-            Please wait while we verify your account
+            {isRejected 
+              ? 'Your account was not approved. Please see the reason below.' 
+              : 'Please wait while we verify your account'
+            }
           </Text>
 
           {/* Status Card */}
@@ -135,83 +205,154 @@ const PendingApprovalScreen: React.FC = () => {
             }
           ]}>
             <View style={styles.statusHeader}>
-              <View style={styles.statusIndicator} />
+              <View style={[
+                styles.statusIndicator,
+                { backgroundColor: isRejected ? '#ef4444' : '#f59e0b' }
+              ]} />
               <Text style={[
                 styles.statusText,
                 { fontSize: isVerySmallScreen ? 16 : 18 }
               ]}>
-                Pending Approval
+                {isRejected ? 'Account Rejected' : 'Pending Approval'}
               </Text>
             </View>
             
-            <Text style={[
-              styles.message,
-              {
-                fontSize: isVerySmallScreen ? 14 : 15,
-                marginBottom: isVerySmallScreen ? 16 : 24,
-              }
-            ]}>
-              Thank you for registering! Our administrators are currently reviewing your account. 
-              You'll gain full access once approved.
-            </Text>
+            {isRejected ? (
+              <>
+                <Text style={[
+                  styles.message,
+                  {
+                    fontSize: isVerySmallScreen ? 14 : 15,
+                    marginBottom: isVerySmallScreen ? 16 : 24,
+                  }
+                ]}>
+                  Unfortunately, your account was not approved. Here's the reason:
+                </Text>
 
-            <View style={[
-              styles.timelineContainer,
-              { marginBottom: isVerySmallScreen ? 16 : 20 }
-            ]}>
-              <View style={styles.timelineItem}>
-                <View style={[styles.timelineDot, styles.completed]}>
-                  <Ionicons name="checkmark" size={12} color="#ffffff" />
+                <View style={[
+                  styles.rejectionBox,
+                  { padding: isVerySmallScreen ? 12 : 16 }
+                ]}>
+                  <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                  <Text style={[
+                    styles.rejectionText,
+                    { fontSize: isVerySmallScreen ? 12 : 13 }
+                  ]}>
+                    {user?.profile?.rejection_reason || 'No specific reason provided.'}
+                  </Text>
                 </View>
-                <Text style={styles.timelineText}>Account Created</Text>
-              </View>
-              
-              <View style={styles.timelineLine} />
-              
-              <View style={styles.timelineItem}>
-                <View style={[styles.timelineDot, styles.current]}>
-                  <View style={styles.pulsingDot} />
-                </View>
-                <Text style={styles.timelineText}>Under Review</Text>
-              </View>
-              
-              <View style={styles.timelineLine} />
-              
-              <View style={styles.timelineItem}>
-                <View style={[styles.timelineDot, styles.pending]}>
-                  <Ionicons name="shield-checkmark" size={12} color="#94a3b8" />
-                </View>
-                <Text style={[styles.timelineText, styles.pendingText]}>Access Granted</Text>
-              </View>
-            </View>
 
-            <View style={[
-              styles.infoBox,
-              { padding: isVerySmallScreen ? 12 : 16 }
-            ]}>
-              <Ionicons name="information-circle" size={20} color="#0ea5e9" />
-              <Text style={[
-                styles.infoText,
-                { fontSize: isVerySmallScreen ? 12 : 13 }
-              ]}>
-                Approval typically takes 24-48 hours. You'll receive an email notification once approved.
-              </Text>
-            </View>
+                <View style={[
+                  styles.infoBox,
+                  { 
+                    padding: isVerySmallScreen ? 12 : 16,
+                    backgroundColor: '#fef2f2',
+                    borderLeftColor: '#ef4444'
+                  }
+                ]}>
+                  <Ionicons name="information-circle" size={20} color="#ef4444" />
+                  <Text style={[
+                    styles.infoText,
+                    { 
+                      fontSize: isVerySmallScreen ? 12 : 13,
+                      color: '#dc2626'
+                    }
+                  ]}>
+                    You can try again by resubmitting your account, or delete your account if you no longer wish to continue.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={[
+                  styles.message,
+                  {
+                    fontSize: isVerySmallScreen ? 14 : 15,
+                    marginBottom: isVerySmallScreen ? 16 : 24,
+                  }
+                ]}>
+                  Thank you for registering! Our administrators are currently reviewing your account. 
+                  You'll gain full access once approved.
+                </Text>
+
+                <View style={[
+                  styles.timelineContainer,
+                  { marginBottom: isVerySmallScreen ? 16 : 20 }
+                ]}>
+                  <View style={styles.timelineItem}>
+                    <View style={[styles.timelineDot, styles.completed]}>
+                      <Ionicons name="checkmark" size={12} color="#ffffff" />
+                    </View>
+                    <Text style={styles.timelineText}>Account Created</Text>
+                  </View>
+                  
+                  <View style={styles.timelineLine} />
+                  
+                  <View style={styles.timelineItem}>
+                    <View style={[styles.timelineDot, styles.current]}>
+                      <View style={styles.pulsingDot} />
+                    </View>
+                    <Text style={styles.timelineText}>Under Review</Text>
+                  </View>
+                  
+                  <View style={styles.timelineLine} />
+                  
+                  <View style={styles.timelineItem}>
+                    <View style={[styles.timelineDot, styles.pending]}>
+                      <Ionicons name="shield-checkmark" size={12} color="#94a3b8" />
+                    </View>
+                    <Text style={[styles.timelineText, styles.pendingText]}>Access Granted</Text>
+                  </View>
+                </View>
+
+                <View style={[
+                  styles.infoBox,
+                  { padding: isVerySmallScreen ? 12 : 16 }
+                ]}>
+                  <Ionicons name="information-circle" size={20} color="#0ea5e9" />
+                  <Text style={[
+                    styles.infoText,
+                    { fontSize: isVerySmallScreen ? 12 : 13 }
+                  ]}>
+                    Approval typically takes 24-48 hours. You'll receive an email notification once approved.
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </Animated.View>
       </ScrollView>
 
-      {/* Logout Button - Fixed at bottom */}
+      {/* Action Buttons - Fixed at bottom */}
       <Animated.View 
         style={[
           styles.bottomContainer,
           { opacity: fadeAnim }
         ]}
       >
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#64748b" />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
+        {isRejected ? (
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity style={styles.tryAgainButton} onPress={handleTryAgain}>
+              <Ionicons name="refresh" size={20} color="#ffffff" />
+              <Text style={styles.tryAgainText}>Try Again</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+              <Ionicons name="trash-outline" size={20} color="#ef4444" />
+              <Text style={styles.deleteText}>Delete My Account</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="#64748b" />
+              <Text style={styles.logoutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color="#64748b" />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
+        )}
       </Animated.View>
     </SafeAreaView>
   );
@@ -412,6 +553,75 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     color: '#64748b',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  rejectionBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fef2f2',
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ef4444',
+    marginBottom: 16,
+  },
+  rejectionText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#dc2626',
+    lineHeight: 18,
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  actionButtonsContainer: {
+    gap: 12,
+  },
+  tryAgainButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    backgroundColor: '#10b981',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  tryAgainText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  deleteText: {
+    fontSize: 16,
+    color: '#ef4444',
     fontWeight: '600',
     marginLeft: 8,
   },
