@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
-import { getAvailableBuoyNumbers } from '../services/buoyService';
 import { 
   settingsService, 
   AppSettings, 
@@ -20,7 +19,6 @@ import {
   saveSettings as saveAppSettings,
   resetSettings as resetAppSettings
 } from '../services/settingsService';
-import { getCacheInfo, clearCache } from '../services/offlineService';
 import { requestNotificationPermissions, getPermissionsStatus, sendNewDataNotification } from '../services/notificationService';
 
 
@@ -44,10 +42,8 @@ const DATA_RETENTION_OPTIONS = [
 
 const SettingsScreen = () => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [availableBuoys, setAvailableBuoys] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [cacheInfo, setCacheInfo] = useState<{ hasCache: boolean; dataPoints: number; age: string } | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<{ status: string; granted: boolean } | null>(null);
 
   // Load settings from storage
@@ -72,26 +68,6 @@ const SettingsScreen = () => {
       Alert.alert('Error', 'Failed to save settings. Please try again.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  // Load available buoys
-  const loadAvailableBuoys = async () => {
-    try {
-      const buoys = await getAvailableBuoyNumbers();
-      setAvailableBuoys(buoys);
-    } catch (error) {
-      console.error('Error loading available buoys:', error);
-    }
-  };
-
-  // Load cache info
-  const loadCacheInfo = async () => {
-    try {
-      const info = await getCacheInfo();
-      setCacheInfo(info);
-    } catch (error) {
-      console.error('Error loading cache info:', error);
     }
   };
 
@@ -152,7 +128,7 @@ const SettingsScreen = () => {
 
   useEffect(() => {
     const initializeSettings = async () => {
-      await Promise.all([loadSettings(), loadAvailableBuoys(), loadCacheInfo(), loadNotificationPermissions()]);
+      await Promise.all([loadSettings(), loadNotificationPermissions()]);
       setLoading(false);
     };
     initializeSettings();
@@ -212,74 +188,6 @@ const SettingsScreen = () => {
                     {option.label}
                   </Text>
                   {settings.autoRefreshInterval === option.value && (
-                    <Ionicons name="checkmark" size={20} color="#0ea5e9" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Default Buoy Selection */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="location" size={24} color="#0ea5e9" />
-              <Text style={styles.sectionTitle}>Default Buoy Selection</Text>
-            </View>
-            <Text style={styles.sectionDescription}>
-              Which buoy to display by default on the dashboard
-            </Text>
-            
-            <View style={styles.optionsContainer}>
-              {availableBuoys.map((buoyNumber) => (
-                <TouchableOpacity
-                  key={buoyNumber}
-                  style={[
-                    styles.optionButton,
-                    settings.defaultBuoySelection === buoyNumber && styles.optionButtonSelected
-                  ]}
-                  onPress={() => updateSetting('defaultBuoySelection', buoyNumber)}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    settings.defaultBuoySelection === buoyNumber && styles.optionTextSelected
-                  ]}>
-                    Buoy {buoyNumber}
-                  </Text>
-                  {settings.defaultBuoySelection === buoyNumber && (
-                    <Ionicons name="checkmark" size={20} color="#0ea5e9" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Data Retention */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="analytics" size={24} color="#0ea5e9" />
-              <Text style={styles.sectionTitle}>Data Retention</Text>
-            </View>
-            <Text style={styles.sectionDescription}>
-              How many data points to keep in memory for graphs and analysis
-            </Text>
-            
-            <View style={styles.optionsContainer}>
-              {DATA_RETENTION_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.optionButton,
-                    settings.dataRetentionPoints === option.value && styles.optionButtonSelected
-                  ]}
-                  onPress={() => updateSetting('dataRetentionPoints', option.value)}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    settings.dataRetentionPoints === option.value && styles.optionTextSelected
-                  ]}>
-                    {option.label}
-                  </Text>
-                  {settings.dataRetentionPoints === option.value && (
                     <Ionicons name="checkmark" size={20} color="#0ea5e9" />
                   )}
                 </TouchableOpacity>
@@ -395,72 +303,6 @@ const SettingsScreen = () => {
               </View>
             )}
           </View>
-
-          {/* Offline Mode */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="cloud-offline" size={24} color="#0ea5e9" />
-              <Text style={styles.sectionTitle}>Offline Mode</Text>
-            </View>
-            <Text style={styles.sectionDescription}>
-              Cache data for offline viewing when internet connection is unavailable
-            </Text>
-            
-            <View style={styles.switchContainer}>
-              <View style={styles.switchLabelContainer}>
-                <Text style={styles.switchLabel}>Enable offline mode</Text>
-                <Text style={styles.switchDescription}>
-                  {settings.offlineMode 
-                    ? 'Data will be cached for offline access' 
-                    : 'Data will only be available when online'
-                  }
-                </Text>
-              </View>
-              <Switch
-                value={settings.offlineMode}
-                onValueChange={(value) => updateSetting('offlineMode', value)}
-                trackColor={{ false: '#e2e8f0', true: '#0ea5e9' }}
-                thumbColor={settings.offlineMode ? '#ffffff' : '#ffffff'}
-                ios_backgroundColor="#e2e8f0"
-              />
-            </View>
-
-            {/* Cache Info */}
-            {settings.offlineMode && cacheInfo && (
-              <View style={styles.cacheInfoContainer}>
-                <View style={styles.cacheInfoHeader}>
-                  <Ionicons name="information-circle" size={20} color="#0ea5e9" />
-                  <Text style={styles.cacheInfoTitle}>Cache Information</Text>
-                </View>
-                {cacheInfo.hasCache ? (
-                  <View style={styles.cacheInfoContent}>
-                    <Text style={styles.cacheInfoText}>
-                      Cached {cacheInfo.dataPoints} data points
-                    </Text>
-                    <Text style={styles.cacheInfoText}>
-                      Last updated: {cacheInfo.age}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.clearCacheButton}
-                      onPress={async () => {
-                        await clearCache();
-                        await loadCacheInfo();
-                        Alert.alert('Cache Cleared', 'Offline cache has been cleared.');
-                      }}
-                    >
-                      <Ionicons name="trash" size={16} color="#ef4444" />
-                      <Text style={styles.clearCacheButtonText}>Clear Cache</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <Text style={styles.cacheInfoText}>
-                    No cached data available
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
@@ -487,36 +329,6 @@ const SettingsScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Current Settings Summary */}
-          <View style={styles.summarySection}>
-            <Text style={styles.summaryTitle}>Current Settings</Text>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Refresh Interval:</Text>
-              <Text style={styles.summaryValue}>
-                {formatRefreshInterval(settings.autoRefreshInterval)}
-              </Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Default Buoy:</Text>
-              <Text style={styles.summaryValue}>Buoy {settings.defaultBuoySelection}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Data Retention:</Text>
-              <Text style={styles.summaryValue}>{settings.dataRetentionPoints} points</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Notifications:</Text>
-              <Text style={styles.summaryValue}>
-                {settings.notificationsEnabled ? 'Enabled' : 'Disabled'}
-              </Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Offline Mode:</Text>
-              <Text style={styles.summaryValue}>
-                {settings.offlineMode ? 'Enabled' : 'Disabled'}
-              </Text>
-            </View>
-          </View>
         </View>
       </ScrollView>
     </View>

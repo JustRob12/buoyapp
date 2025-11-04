@@ -229,7 +229,7 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
 
         {pendingUsers.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={80} color="#10b981" />
+            <Ionicons name="checkmark-circle-outline" size={80} color="#0ea5e9" />
             <Text style={styles.emptyTitle}>All Caught Up!</Text>
             <Text style={styles.emptyMessage}>
               There are no pending user registrations at the moment.
@@ -304,7 +304,7 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e2e8f0',
   },
   closeButton: {
     padding: 4,
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#1e293b',
   },
   placeholder: {
     width: 32,
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e2e8f0',
   },
   statNumber: {
     fontSize: 28,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#1e293b',
     marginTop: 16,
     marginBottom: 8,
   },
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e2e8f0',
   },
   userInfo: {
     flexDirection: 'row',
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   approveButton: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0ea5e9',
   },
   approveButtonText: {
     color: '#ffffff',
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   confirmButton: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0ea5e9',
   },
   confirmButtonText: {
     fontSize: 16,
