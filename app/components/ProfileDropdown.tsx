@@ -203,7 +203,13 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
                 </Text>
                 <View style={styles.roleBadge}>
                   <Text style={styles.roleText}>
-                    {user?.profile?.role === 0 ? 'Admin' : 'Researcher'}
+                    {user?.profile?.role === 0
+                      ? 'Admin'
+                      : user?.profile?.role === 1
+                      ? 'Researcher'
+                      : user?.profile?.role === 2
+                      ? 'Pending'
+                      : 'Approved User'}
                   </Text>
                 </View>
               </View>

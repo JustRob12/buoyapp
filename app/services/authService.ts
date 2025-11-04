@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Supabase configuration
-const SUPABASE_URL = 'https://myneeqvnnhpvtnigxzwb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bmVlcXZubmhwdnRuaWd4endiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDMwMTIsImV4cCI6MjA3MzQxOTAxMn0.OFLagS7U7vXZuwEGgyEPU1IZUK03hDrPXNHfWHV3qlA';
+const SUPABASE_URL = 'https://cizcaodtissblzhsmosy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpemNhb2R0aXNzYmx6aHNtb3N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNTM1MDMsImV4cCI6MjA3NzgyOTUwM30.Xmx2y6u3pZ3u0Wiu0obkIOu53-rWNqlpUcHGZj6DZOs';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -18,7 +18,7 @@ export interface UserProfile {
   id: string;
   fullname: string;
   username: string;
-  role: number; // 0 = admin, 1 = researcher, 2 = pending
+  role: number; // 0 = admin, 1 = researcher, 2 = pending, 3 = approved user
   profile_picture?: string;
   rejection_status?: boolean; // TRUE if account was rejected
   rejection_reason?: string; // Reason for rejection
@@ -212,12 +212,12 @@ class AuthService {
     }
   }
 
-  // Approve user (change role from 2 to 1)
+  // Approve user (change role from 2 to 3)
   async approveUser(userId: string): Promise<boolean> {
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ role: 1 })
+        .update({ role: 3 })
         .eq('id', userId);
 
       if (error) {

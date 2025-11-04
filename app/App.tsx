@@ -30,13 +30,22 @@ const AppContent: React.FC = () => {
     return <AuthNavigator onAuthSuccess={() => setShowApp(true)} />;
   }
 
+  // If profile hasn't loaded yet, avoid showing the dashboard
+  if (user.profile == null) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0ea5e9" />
+      </View>
+    );
+  }
+
   // Check user role and show appropriate screen
   if (user.profile?.role === 2) {
     // User is pending approval
     return <PendingApprovalScreen />;
   }
 
-  // User is approved (role 0 = admin, role 1 = researcher)
+  // User is approved (role 0 = admin, role 1 = researcher, role 3 = approved user)
   return (
     <NavigationContainer>
       <StatusBar style="dark" backgroundColor="#ffffff" />

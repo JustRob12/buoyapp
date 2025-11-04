@@ -48,6 +48,15 @@ const PendingApprovalScreen: React.FC = () => {
     ]).start();
   }, []);
 
+  // Periodically refresh profile to detect when admin approval changes role (e.g., 2 -> 3)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshUserProfile();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [refreshUserProfile]);
+
   const handleLogout = async () => {
     try {
       await logout();

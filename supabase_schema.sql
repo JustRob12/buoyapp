@@ -6,7 +6,7 @@ CREATE TABLE public.user_profiles (
     id UUID REFERENCES auth.users(id) PRIMARY KEY,
     fullname TEXT NOT NULL,
     username TEXT UNIQUE NOT NULL,
-    role INTEGER DEFAULT 2 CHECK (role IN (0, 1, 2)), -- 0 = admin, 1 = researcher, 2 = pending
+    role INTEGER DEFAULT 2 CHECK (role IN (0, 1, 2, 3)), -- 0 = admin, 1 = researcher, 2 = pending, 3 = approved user
     profile_picture TEXT, -- URL to profile picture
     rejection_status BOOLEAN DEFAULT FALSE, -- TRUE if account was rejected
     rejection_reason TEXT, -- Reason for rejection
@@ -56,6 +56,8 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create trigger to automatically create user profile on signup
+-- Drop trigger first to make this script idempotent
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
