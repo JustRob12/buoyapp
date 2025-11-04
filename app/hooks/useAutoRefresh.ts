@@ -46,8 +46,17 @@ export const useAutoRefresh = ({ onRefresh, enabled = true }: UseAutoRefreshOpti
       restartAutoRefresh();
     });
 
-    // Start auto-refresh on mount
-    startAutoRefresh();
+    // Load persisted settings first, then start
+    (async () => {
+      try {
+        const loaded = await settingsService.loadSettings();
+        settingsRef.current = loaded;
+      } catch (e) {
+        // ignore and use defaults
+      } finally {
+        startAutoRefresh();
+      }
+    })();
 
     // Cleanup on unmount
     return () => {

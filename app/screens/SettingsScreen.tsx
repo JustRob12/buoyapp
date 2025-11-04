@@ -19,7 +19,7 @@ import {
   saveSettings as saveAppSettings,
   resetSettings as resetAppSettings
 } from '../services/settingsService';
-import { requestNotificationPermissions, getPermissionsStatus, sendNewDataNotification } from '../services/notificationService';
+// Notifications removed from settings
 
 
 
@@ -44,7 +44,7 @@ const SettingsScreen = () => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState<{ status: string; granted: boolean } | null>(null);
+  // Notifications removed from settings
 
   // Load settings from storage
   const loadSettings = async () => {
@@ -71,18 +71,7 @@ const SettingsScreen = () => {
     }
   };
 
-  // Load notification permissions
-  const loadNotificationPermissions = async () => {
-    try {
-      const status = await getPermissionsStatus();
-      setNotificationPermission({
-        status: status.status,
-        granted: status.granted,
-      });
-    } catch (error) {
-      console.error('Error loading notification permissions:', error);
-    }
-  };
+  // Notifications removed from settings
 
   // Reset settings to defaults
   const resetSettings = () => {
@@ -128,7 +117,7 @@ const SettingsScreen = () => {
 
   useEffect(() => {
     const initializeSettings = async () => {
-      await Promise.all([loadSettings(), loadNotificationPermissions()]);
+      await Promise.all([loadSettings()]);
       setLoading(false);
     };
     initializeSettings();
@@ -195,113 +184,32 @@ const SettingsScreen = () => {
             </View>
           </View>
 
-          {/* Notifications */}
+          {/* Privacy */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="notifications" size={24} color="#0ea5e9" />
-              <Text style={styles.sectionTitle}>Notifications</Text>
+              <Ionicons name="shield-checkmark" size={24} color="#0ea5e9" />
+              <Text style={styles.sectionTitle}>Privacy</Text>
             </View>
             <Text style={styles.sectionDescription}>
-              Get notified when new buoy data is available
+              We only collect information necessary to run AquaNet and improve your experience. Your profile details and app settings are stored securely. We do not sell your data.
             </Text>
-            
-            <View style={styles.switchContainer}>
-              <View style={styles.switchLabelContainer}>
-                <Text style={styles.switchLabel}>Enable notifications</Text>
-                <Text style={styles.switchDescription}>
-                  {settings.notificationsEnabled 
-                    ? 'You will receive notifications for new data' 
-                    : 'Notifications are disabled'
-                  }
-                </Text>
-              </View>
-              <Switch
-                value={settings.notificationsEnabled}
-                onValueChange={async (value) => {
-                  if (value) {
-                    // Request permissions when enabling notifications
-                    const granted = await requestNotificationPermissions();
-                    if (!granted) {
-                      Alert.alert(
-                        'Permission Required',
-                        'Please enable notification permissions in your device settings to receive notifications.',
-                        [{ text: 'OK' }]
-                      );
-                      return;
-                    }
-                  }
-                  updateSetting('notificationsEnabled', value);
-                }}
-                trackColor={{ false: '#e2e8f0', true: '#0ea5e9' }}
-                thumbColor={settings.notificationsEnabled ? '#ffffff' : '#ffffff'}
-                ios_backgroundColor="#e2e8f0"
-              />
-            </View>
+            <Text style={styles.sectionDescription}>
+              You can request account deletion at any time from Pending Approval or by contacting support. Deleting your account removes your profile and associated settings.
+            </Text>
+          </View>
 
-            {/* Notification Permission Status */}
-            {notificationPermission && (
-              <View style={styles.notificationStatusContainer}>
-                <View style={styles.notificationStatusHeader}>
-                  <Ionicons 
-                    name={notificationPermission.granted ? "checkmark-circle" : "close-circle"} 
-                    size={20} 
-                    color={notificationPermission.granted ? "#10b981" : "#ef4444"} 
-                  />
-                  <Text style={styles.notificationStatusTitle}>Permission Status</Text>
-                </View>
-                <Text style={styles.notificationStatusText}>
-                  {notificationPermission.granted 
-                    ? 'Notifications are allowed' 
-                    : `Notifications are ${notificationPermission.status === 'denied' ? 'blocked' : 'not granted'}`
-                  }
-                </Text>
-                {!notificationPermission.granted && (
-                  <TouchableOpacity
-                    style={styles.requestPermissionButton}
-                    onPress={async () => {
-                      const granted = await requestNotificationPermissions();
-                      if (granted) {
-                        await loadNotificationPermissions();
-                        Alert.alert('Success', 'Notification permissions granted!');
-                      } else {
-                        Alert.alert(
-                          'Permission Denied',
-                          'Please enable notifications in your device settings.',
-                          [{ text: 'OK' }]
-                        );
-                      }
-                    }}
-                  >
-                    <Ionicons name="settings" size={16} color="#0ea5e9" />
-                    <Text style={styles.requestPermissionButtonText}>Request Permission</Text>
-                  </TouchableOpacity>
-                )}
-                {notificationPermission.granted && settings.notificationsEnabled && (
-                  <TouchableOpacity
-                    style={styles.testNotificationButton}
-                    onPress={async () => {
-                      // Create a test buoy data object
-                      const testBuoyData = {
-                        ID: 'test',
-                        Buoy: 'Buoy 1',
-                        Date: new Date().toLocaleDateString(),
-                        Time: new Date().toLocaleTimeString(),
-                        Latitude: '14.5995',
-                        Longitude: '120.9842',
-                        pH: '7.2',
-                        'Temp (°C)': '25.5',
-                        'TDS (ppm)': '150'
-                      };
-                      await sendNewDataNotification(testBuoyData);
-                      Alert.alert('Test Notification', 'A test notification has been sent!');
-                    }}
-                  >
-                    <Ionicons name="notifications" size={16} color="#10b981" />
-                    <Text style={styles.testNotificationButtonText}>Send Test Notification</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
+          {/* About */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="information-circle" size={24} color="#0ea5e9" />
+              <Text style={styles.sectionTitle}>About</Text>
+            </View>
+            <Text style={styles.sectionDescription}>
+              AquaNet visualizes water quality readings collected from buoy sensors. Use Dashboard and Graphs to monitor trends, and Map to see buoy locations.
+            </Text>
+            <Text style={styles.sectionDescription}>
+              Version {DEFAULT_SETTINGS ? '1.0.0' : '1.0.0'}. For feedback or support, please reach out to the project maintainers.
+            </Text>
           </View>
           {/* Action Buttons */}
           <View style={styles.actionButtons}>

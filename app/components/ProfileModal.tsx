@@ -168,7 +168,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   };
 
   const getRoleText = (role: number) => {
-    return role === 0 ? 'Administrator' : 'Researcher';
+    return role === 0 ? 'Admin' : 'Researcher';
   };
 
   const getRoleBadgeStyle = (role: number) => {
@@ -269,9 +269,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
               {/* Role */}
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Role</Text>
-                <View style={[styles.roleBadge, getRoleBadgeStyle(user?.profile?.role || 1)]}>
-                  <Text style={[styles.roleBadgeText, getRoleTextStyle(user?.profile?.role || 1)]}>
-                    {getRoleText(user?.profile?.role || 1)}
+                <View style={[styles.roleBadge, getRoleBadgeStyle(user?.profile?.role ?? 1)]}>
+                  <Text style={[styles.roleBadgeText, getRoleTextStyle(user?.profile?.role ?? 1)]}>
+                    {getRoleText(user?.profile?.role ?? 1)}
                   </Text>
                 </View>
               </View>

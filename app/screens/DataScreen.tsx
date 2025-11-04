@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import Header from '../components/Header';
 import DataTable from '../components/DataTable';
-import { fetchBuoyData, getAllBuoyDataForCSV, BuoyData, getAllBuoyData } from '../services/buoyService';
+import { fetchBuoyData, BuoyData, getAllBuoyData } from '../services/buoyService';
 
 const DataScreen = () => {
   const [data, setData] = useState<BuoyData[]>([]);
@@ -14,7 +12,6 @@ const DataScreen = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
   const [allData, setAllData] = useState<BuoyData[]>([]);
   const [filteredData, setFilteredData] = useState<BuoyData[]>([]);
   const [currentFilters, setCurrentFilters] = useState<{ month?: string; year?: string }>({});
@@ -300,58 +297,7 @@ const DataScreen = () => {
   };
 
 
-  const downloadCSV = async () => {
-    try {
-      setDownloading(true);
-      
-      // Show confirmation dialog
-      Alert.alert(
-        'Download CSV',
-        'This will download all buoy data as a CSV file. This may take a moment.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Download', 
-            onPress: async () => {
-              try {
-                // Fetch all data and convert to CSV
-                const csvData = await getAllBuoyDataForCSV();
-                console.log('📊 Downloading all records');
-                
-                // Create filename with timestamp
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-                const filename = `buoy_data_${timestamp}.csv`;
-                const fileUri = `file:///tmp/${filename}`;
-                
-                // Write CSV file
-                await FileSystem.writeAsStringAsync(fileUri, csvData);
-                
-                // Share the file
-                if (await Sharing.isAvailableAsync()) {
-                  await Sharing.shareAsync(fileUri, {
-                    mimeType: 'text/csv',
-                    dialogTitle: 'Download Buoy Data CSV',
-                  });
-                } else {
-                  Alert.alert('Success', `CSV file saved as: ${filename}`);
-                }
-                
-              } catch (err) {
-                console.error('Error downloading CSV:', err);
-                Alert.alert('Error', 'Failed to download CSV file. Please try again.');
-              } finally {
-                setDownloading(false);
-              }
-            }
-          }
-        ]
-      );
-    } catch (err) {
-      console.error('Error in downloadCSV:', err);
-      Alert.alert('Error', 'Failed to start download. Please try again.');
-      setDownloading(false);
-    }
-  };
+  // downloadCSV removed per request
 
   useEffect(() => {
     fetchData(1);
@@ -402,7 +348,6 @@ const DataScreen = () => {
             totalPages={displayTotalPages}
             onPageChange={onPageChange}
             onFilterChange={applyFilters}
-            onDownloadCSV={downloadCSV}
             clearFiltersTrigger={clearFiltersTrigger}
           />
         )}

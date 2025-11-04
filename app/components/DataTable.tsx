@@ -23,7 +23,6 @@ interface DataTableProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   onFilterChange?: (filters: { month?: string; year?: string }) => void;
-  onDownloadCSV?: () => void;
   clearFiltersTrigger?: number; // Add trigger to clear filters externally
 }
 
@@ -36,7 +35,6 @@ const DataTable: React.FC<DataTableProps> = ({
   totalPages,
   onPageChange,
   onFilterChange,
-  onDownloadCSV,
   clearFiltersTrigger,
 }) => {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -563,7 +561,7 @@ const DataTable: React.FC<DataTableProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Action Bar with Filter, Refresh, and Download */}
+      {/* Action Bar with Filter and Refresh */}
       <View style={styles.actionBar}>
         <View style={styles.actionLeft}>
           <TouchableOpacity
@@ -596,20 +594,6 @@ const DataTable: React.FC<DataTableProps> = ({
             />
             <Text style={[styles.actionButtonText, { fontSize: getResponsiveFontSize(11) }]}>
               Refresh
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={onDownloadCSV}
-          >
-            <Ionicons 
-              name="download-outline" 
-              size={getResponsiveIconSize(18)} 
-              color="#f59e0b" 
-            />
-            <Text style={[styles.actionButtonText, { fontSize: getResponsiveFontSize(11) }]}>
-              Download
             </Text>
           </TouchableOpacity>
         </View>
