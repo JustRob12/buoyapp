@@ -35,10 +35,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session on app start
-    checkSession();
+    // Don't check for existing session - users must login every time
+    setLoading(false);
 
-    // Listen for auth state changes
+    // Listen for auth state changes (only for active login sessions)
     const { data: { subscription } } = authService.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event);
@@ -48,7 +48,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           setUser(null);
         }
-        setLoading(false);
       }
     );
 
@@ -56,19 +55,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       subscription.unsubscribe();
     };
   }, []);
-
-  const checkSession = async () => {
-    try {
-      const session = await authService.getCurrentSession();
-      if (session?.user) {
-        await loadUserWithProfile(session.user);
-      }
-    } catch (error) {
-      console.error('Error checking session:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadUserWithProfile = async (authUser: any) => {
     try {
