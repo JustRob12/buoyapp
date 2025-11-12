@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaNet Project - Gantt Chart</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .gantt-wrapper {
+            display: flex;
+            overflow-x: auto;
+            background: white;
+        }
+
+        .gantt-container {
+            display: flex;
+            width: 100%;
+            min-width: 1200px;
+        }
+
+        .task-list {
+            flex: 0 0 300px;
+            border-right: 2px solid #ddd;
+            background: #fafafa;
+            padding: 0;
+            overflow: visible;
+        }
+
+        .task-item {
+            padding: 8px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            min-height: 32px;
+            height: 32px;
+            box-sizing: border-box;
+        }
+
+        .task-item.phase {
+            background: #f0f0f0;
+            font-weight: 700;
+            color: #000;
+            padding: 10px 15px;
+            min-height: 40px;
+            height: 40px;
+            box-sizing: border-box;
+        }
+
+        .task-item.subtask {
+            padding-left: 40px;
+            font-weight: 400;
+            color: #666;
+        }
+
+        .task-item.spacer {
+            padding: 12px 0;
+            border: none;
+            border-bottom: 2px solid #ddd;
+            min-height: 44px;
+            height: 44px;
+            box-sizing: border-box;
+        }
+
+        .timeline {
+            flex: 1;
+            padding: 0;
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            background: white;
+        }
+
+        .week-header {
+            flex: 1;
+            text-align: center;
+            padding: 12px 0;
+            border-right: 1px solid #e0e0e0;
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            min-width: 60px;
+        }
+
+        .week-header:last-child {
+            border-right: none;
+        }
+
+        .chart {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            border-bottom: 1px solid #f0f0f0;
+            min-height: 32px;
+            height: 32px;
+            align-items: center;
+            overflow: visible;
+            box-sizing: border-box;
+        }
+
+        .chart-row.phase {
+            background: #f0f0f0;
+            min-height: 40px;
+            height: 40px;
+        }
+
+        .chart-cell {
+            border-right: 1px solid #e0e0e0;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 2px 4px;
+            min-width: 60px;
+            grid-column: span 1;
+            overflow: visible;
+        }
+
+        .chart-cell:last-child {
+            border-right: none;
+        }
+
+        .bar {
+            height: 18px;
+            background: #1e88e5;
+            border-radius: 0px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            position: relative;
+        }
+
+        .bar:hover {
+            opacity: 0.8;
+        }
+
+        .bar-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            overflow: visible;
+        }
+
+        .bar.span-2 {
+            width: calc(200% - 2px);
+            position: absolute;
+            left: 0;
+        }
+
+        .bar.span-3 {
+            width: calc(300% - 4px);
+            position: absolute;
+            left: 0;
+        }
+
+        .bar.span-4 {
+            width: calc(400% - 6px);
+            position: absolute;
+            left: 0;
+        }
+
+        .bar.span-5 {
+            width: calc(500% - 8px);
+            position: absolute;
+            left: 0;
+        }
+
+        .bar.span-6 {
+            width: calc(600% - 10px);
+            position: absolute;
+            left: 0;
+        }
+
+        /* Phase colors */
+        .chart-row.req .bar { background: #1e88e5; } /* Blue */
+        .chart-row.design .bar { background: #9c27b0; } /* Purple */
+        .chart-row.impl .bar { background: #00bcd4; } /* Cyan */
+        .chart-row.test .bar { background: #ff5252; } /* Red */
+        .chart-row.deploy .bar { background: #4caf50; } /* Green */
+        .chart-row.maint .bar { background: #9e9e9e; } /* Gray */
+
+        .legend {
+            display: flex;
+            justify-content: flex-start;
+            gap: 30px;
+            padding: 20px;
+            background: #fafafa;
+            border-top: 1px solid #e0e0e0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .legend-color.req { background: #1e88e5; }
+        .legend-color.design { background: #9c27b0; }
+        .legend-color.impl { background: #00bcd4; }
+        .legend-color.test { background: #ff5252; }
+        .legend-color.deploy { background: #4caf50; }
+        .legend-color.maint { background: #9e9e9e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AquaNet Project - Gantt Chart (20 Weeks)</h1>
+        </div>
+
+        <div class="gantt-wrapper">
+            <div class="gantt-container">
+                <!-- Task List -->
+                <div class="task-list">
+                    <div class="task-item spacer"></div>
+                    <div class="task-item phase">1.0 Requirements Analysis</div>
+                    <div class="task-item subtask">1.1 Stakeholder needs</div>
+                    <div class="task-item subtask">1.2 Requirements collection</div>
+                    <div class="task-item subtask">1.3 System objectives and project scope</div>
+                    <div class="task-item subtask">1.4 Requirements Documentation</div>
+
+                    <div class="task-item phase">2.0 System and Software Design</div>
+                    <div class="task-item subtask">2.1 System architecture</div>
+                    <div class="task-item subtask">2.2 Database schema</div>
+                    <div class="task-item subtask">2.3 User interface (UI) and user experience (UX) designs</div>
+                    <div class="task-item subtask">2.4 Conceptual Framework</div>
+                    <div class="task-item subtask">2.5 Design review and validation</div>
+
+                    <div class="task-item phase">3.0 Implementation</div>
+                    <div class="task-item subtask">3.1 Front-end and mobile interface</div>
+                    <div class="task-item subtask">3.2 Back-end and server components</div>
+                    <div class="task-item subtask">3.3 API and third-party service integrations</div>
+                    <div class="task-item subtask">3.4 Code quality assurance</div>
+                    <div class="task-item subtask">3.5 Debugging</div>
+
+                    <div class="task-item phase">4.0 Testing</div>
+                    <div class="task-item subtask">4.1 Test planning and test cases</div>
+                    <div class="task-item subtask">4.2 Unit tests</div>
+                    <div class="task-item subtask">4.3 Integration tests</div>
+                    <div class="task-item subtask">4.4 System tests</div>
+                    <div class="task-item subtask">4.5 User acceptance testing</div>
+                    <div class="task-item subtask">4.6 Issue tracking and resolution</div>
+
+                    <div class="task-item phase">5.0 Deployment</div>
+                    <div class="task-item subtask">5.1 Deployment and release plan</div>
+                    <div class="task-item subtask">5.2 User Training</div>
+                    <div class="task-item subtask">5.3 System Launch</div>
+                    <div class="task-item subtask">5.4 Documentation Turnover</div>
+
+                    <div class="task-item phase">6.0 Maintenance</div>
+                    <div class="task-item subtask">6.1 System monitoring and performance tracking</div>
+                    <div class="task-item subtask">6.2 Regular updates and bug fixes</div>
+                    <div class="task-item subtask">6.3 Scalability and future upgrades</div>
+                </div>
+
+                <!-- Timeline -->
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <!-- Week Headers -->
+                    <div class="timeline">
+                        <div class="week-header">Week 1</div>
+                        <div class="week-header">Week 2</div>
+                        <div class="week-header">Week 3</div>
+                        <div class="week-header">Week 4</div>
+                        <div class="week-header">Week 5</div>
+                        <div class="week-header">Week 6</div>
+                        <div class="week-header">Week 7</div>
+                        <div class="week-header">Week 8</div>
+                        <div class="week-header">Week 9</div>
+                        <div class="week-header">Week 10</div>
+                        <div class="week-header">Week 11</div>
+                        <div class="week-header">Week 12</div>
+                        <div class="week-header">Week 13</div>
+                        <div class="week-header">Week 14</div>
+                        <div class="week-header">Week 15</div>
+                        <div class="week-header">Week 16</div>
+                        <div class="week-header">Week 17</div>
+                        <div class="week-header">Week 18</div>
+                        <div class="week-header">Week 19</div>
+                        <div class="week-header">Week 20</div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="chart">
+                        <!-- 1.0 Requirements Analysis (Week 1-4) -->
+                        <div class="chart-row phase req">
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar span-4"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 1.1 Stakeholder needs (Week 1) -->
+                        <div class="chart-row req">
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 1.2 Requirements collection (Week 2) -->
+                        <div class="chart-row req">
+                            <div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 1.3 System objectives and project scope (Week 3) -->
+                        <div class="chart-row req">
+                            <div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 1.4 Requirements Documentation (Week 4) -->
+                        <div class="chart-row req">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 2.0 System Design (Week 5-9) -->
+                        <div class="chart-row phase design">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar span-5"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 2.1 System architecture (Week 5) -->
+                        <div class="chart-row design">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 2.2 Database schema (Week 6) -->
+                        <div class="chart-row design">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 2.3 UI/UX designs (Week 7) -->
+                        <div class="chart-row design">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 2.4 Conceptual Framework (Week 8) -->
+                        <div class="chart-row design">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 2.5 Design review and validation (Week 9) -->
+                        <div class="chart-row design">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 3.0 Implementation (Week 10-14) -->
+                        <div class="chart-row phase impl">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar span-5"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 3.1 Front-end and mobile interface (Week 10) -->
+                        <div class="chart-row impl">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 3.2 Back-end and server components (Week 11) -->
+                        <div class="chart-row impl">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 3.3 API and third-party service integrations (Week 12) -->
+                        <div class="chart-row impl">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 3.4 Code quality assurance (Week 13) -->
+                        <div class="chart-row impl">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 3.5 Debugging (Week 14) -->
+                        <div class="chart-row impl">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 4.0 Testing (Week 15-18) -->
+                        <div class="chart-row phase test">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar span-4"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 4.1 Test planning and test cases (Week 15) -->
+                        <div class="chart-row test">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 4.2 Unit tests (Week 16) -->
+                        <div class="chart-row test">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 4.3 Integration tests (Week 16) -->
+                        <div class="chart-row test">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 4.4 System tests (Week 17) -->
+                        <div class="chart-row test">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 4.5 User acceptance testing (Week 17) -->
+                        <div class="chart-row test">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 4.6 Issue tracking and resolution (Week 18) -->
+                        <div class="chart-row test">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 5.0 Deployment (Week 18-19) -->
+                        <div class="chart-row phase deploy">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar span-2"></div></div></div>
+                            <div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 5.1 Deployment and release plan (Week 18) -->
+                        <div class="chart-row deploy">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 5.2 User Training (Week 18) -->
+                        <div class="chart-row deploy">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div><div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 5.3 System Launch (Week 19) -->
+                        <div class="chart-row deploy">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 5.4 Documentation Turnover (Week 19) -->
+                        <div class="chart-row deploy">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 6.0 Maintenance (Week 19-20) -->
+                        <div class="chart-row phase maint">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar span-2"></div></div></div>
+                        </div>
+
+                        <!-- 6.1 System monitoring and performance tracking (Week 19) -->
+                        <div class="chart-row maint">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                            <div class="chart-cell"></div>
+                        </div>
+
+                        <!-- 6.2 Regular updates and bug fixes (Week 20) -->
+                        <div class="chart-row maint">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                        </div>
+
+                        <!-- 6.3 Scalability and future upgrades (Week 20) -->
+                        <div class="chart-row maint">
+                            <div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div><div class="chart-cell"></div>
+                            <div class="chart-cell"><div class="bar-wrapper"><div class="bar"></div></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color req"></div>
+                <span>Requirements Analysis</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color design"></div>
+                <span>System Design</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color impl"></div>
+                <span>Implementation</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color test"></div>
+                <span>Testing</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color deploy"></div>
+                <span>Deployment</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color maint"></div>
+                <span>Maintenance</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

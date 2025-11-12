@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Header from '../components/Header';
 import BuoyGraph from '../components/BuoyGraph';
-import { getLatestBuoyDataForGraph, BuoyData, testApiConnection, getAvailableMonthsFromAPI, fetchBuoyData } from '../services/buoyService';
+import { getLatestBuoyDataForGraph, BuoyData, testApiConnection, fetchBuoyData } from '../services/buoyService';
 import { settingsService, loadSettings } from '../services/settingsService';
 import { sendMultipleBuoysNotification } from '../services/notificationService';
 import { getCachedBuoyData, cacheBuoyData, isOfflineModeEnabled } from '../services/offlineService';
@@ -26,9 +26,6 @@ const GraphScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   const fetchGraphData = async () => {
@@ -105,71 +102,56 @@ const GraphScreen = () => {
 
   useEffect(() => {
     fetchGraphData();
-    // Load available months for reporting
-    (async () => {
-      try {
-        const { months } = await getAvailableMonthsFromAPI();
-        setAvailableMonths(months);
-        if (months.length > 0) setSelectedMonth(months[0]);
-      } catch (e) {
-        console.log('Error loading months', e);
-      }
-    })();
   }, []);
 
   const generateNarrativeReport = async () => {
-    if (!selectedMonth) return;
     try {
       setGenerating(true);
-      // Fetch data page-by-page from API and filter by the selected month
-      const parseSelected = (label: string) => {
-        // Expect formats like "Aug 2025"
-        const parts = label.trim().split(/\s+/);
-        if (parts.length === 2) {
-          const [monStr, yearStr] = parts;
-          const monthIndex = {
-            Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-            Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
-          } as Record<string, number>;
-          const m = monthIndex[monStr as keyof typeof monthIndex];
-          const y = parseInt(yearStr, 10);
-          if (!isNaN(m) && !isNaN(y)) return { m, y };
-        }
-        const fallback = new Date(label);
-        return { m: fallback.getMonth(), y: fallback.getFullYear() };
-      };
-
-      const { m: targetMonth, y: targetYear } = parseSelected(selectedMonth);
-      const targetPrefix = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-`;
-      const monthData: BuoyData[] = [];
-      let page = 1;
-      let hasMore = true;
-
-      const recordMatchesTargetMonth = (dateStr: string, timeStr: string): boolean => {
+      
+      // Helper to parse date and extract month, filtering out invalid years (like 2068)
+      const getMonthFromRecord = (dateStr: string, timeStr: string): string | null => {
         const trimmedDate = (dateStr || '').trim();
         const trimmedTime = (timeStr || '').trim();
-        const tryDate = (d: Date | null) => !!d && !isNaN(d.getTime()) && d.getMonth() === targetMonth && d.getFullYear() === targetYear;
-
+        
+        let date: Date | null = null;
         if (trimmedDate.includes('/')) {
           const parts = trimmedDate.split('/');
           if (parts.length === 3) {
-            const a = new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10)); // MM/DD/YYYY
-            if (tryDate(a)) return true;
-            const b = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)); // DD/MM/YYYY
-            if (tryDate(b)) return true;
+            const year = parseInt(parts[2], 10);
+            // Filter out invalid years (like 2068)
+            if (year < 2020 || year > 2030) {
+              return null;
+            }
+            date = new Date(year, parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+            if (isNaN(date.getTime())) {
+              date = new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+            }
           }
         } else if (trimmedDate.includes('-')) {
-          // Fast path for format YYYY-MM-DD: string prefix match avoids timezone issues
-          if (trimmedDate.startsWith(targetPrefix)) return true;
-          // Fallback to date parsing if prefix fails
-          const d = new Date(trimmedDate);
-          if (tryDate(d)) return true;
+          date = new Date(trimmedDate);
+          // Filter out invalid years
+          if (date.getFullYear() < 2020 || date.getFullYear() > 2030) {
+            return null;
+          }
         } else {
-          const d = new Date(`${trimmedDate} ${trimmedTime}`);
-          if (tryDate(d)) return true;
+          date = new Date(`${trimmedDate} ${trimmedTime}`);
+          // Filter out invalid years
+          if (date.getFullYear() < 2020 || date.getFullYear() > 2030) {
+            return null;
+          }
         }
-        return false;
+        
+        if (date && !isNaN(date.getTime()) && date.getFullYear() >= 2020 && date.getFullYear() <= 2030) {
+          return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        }
+        return null;
       };
+
+      // Fetch ALL data from API to compare months
+      console.log('📊 Fetching all data from API for month comparison...');
+      const allData: BuoyData[] = [];
+      let page = 1;
+      let hasMore = true;
 
       while (hasMore && page <= 100) {
         const response = await fetchBuoyData(page);
@@ -177,340 +159,307 @@ const GraphScreen = () => {
           hasMore = false;
           break;
         }
-        for (const rec of response.data) {
-          if (recordMatchesTargetMonth(rec.Date, rec.Time)) {
-            monthData.push(rec);
-          }
-        }
+        allData.push(...response.data);
         page++;
       }
 
-      // Build a professional narrative from stats
+      console.log(`✅ Fetched ${allData.length} total records from API`);
+
+      // Filter out invalid years (like 2068) and group data by month
+      const dataByMonth = new Map<string, BuoyData[]>();
+      allData.forEach(rec => {
+        const monthKey = getMonthFromRecord(rec.Date, rec.Time);
+        if (monthKey) {
+          if (!dataByMonth.has(monthKey)) {
+            dataByMonth.set(monthKey, []);
+          }
+          dataByMonth.get(monthKey)!.push(rec);
+        }
+      });
+
+      console.log(`📊 Available months: ${Array.from(dataByMonth.keys()).join(', ')}`);
+
+      // Helper to convert string to number
       const toNum = (v: string | number) => {
         const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''));
         return Number.isFinite(n) ? n : NaN;
       };
-      const vals = {
-        ph: monthData.map(d => toNum(d.pH)).filter(n => !isNaN(n)),
-        temp: monthData.map(d => toNum(d['Temp (°C)'])).filter(n => !isNaN(n)),
-        tds: monthData.map(d => toNum(d['TDS (ppm)'])).filter(n => !isNaN(n)),
-      };
-      const agg = (arr: number[]) => ({
-        avg: arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN,
-        min: arr.length ? Math.min(...arr) : NaN,
-        max: arr.length ? Math.max(...arr) : NaN,
-      });
-      const phStats = agg(vals.ph);
-      const tempStats = agg(vals.temp);
-      const tdsStats = agg(vals.tds);
-      const fmt2 = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : '—');
-      const findRowByValue = (key: 'ph' | 'temp' | 'tds', value: number) =>
-        monthData.find(d => {
-          const v = key === 'ph' ? toNum(d.pH) : key === 'temp' ? toNum(d['Temp (°C)']) : toNum(d['TDS (ppm)']);
-          return v === value;
+
+      // Generate pie charts for each month showing distribution of pH, Temperature, and TDS within that month
+      const generatePieChartForMonth = (monthKey: string, monthData: BuoyData[], type: 'ph' | 'temp' | 'tds') => {
+        const values = monthData.map(d => {
+          const val = type === 'ph' ? toNum(d.pH) : type === 'temp' ? toNum(d['Temp (°C)']) : toNum(d['TDS (ppm)']);
+          return val;
+        }).filter(n => !isNaN(n) && n > 0);
+
+        if (values.length === 0) {
+          return null;
+        }
+
+        // Define ranges based on type
+        let ranges: { label: string; min: number; max: number }[] = [];
+        if (type === 'ph') {
+          ranges = [
+            { label: 'Acidic (< 6.5)', min: 0, max: 6.5 },
+            { label: 'Normal (6.5-8.5)', min: 6.5, max: 8.5 },
+            { label: 'Alkaline (> 8.5)', min: 8.5, max: 14 }
+          ];
+        } else if (type === 'temp') {
+          const minTemp = Math.min(...values);
+          const maxTemp = Math.max(...values);
+          const range = maxTemp - minTemp;
+          const step = range / 3;
+          ranges = [
+            { label: `Low (${minTemp.toFixed(1)}-${(minTemp + step).toFixed(1)}°C)`, min: minTemp, max: minTemp + step },
+            { label: `Medium (${(minTemp + step).toFixed(1)}-${(minTemp + step * 2).toFixed(1)}°C)`, min: minTemp + step, max: minTemp + step * 2 },
+            { label: `High (${(minTemp + step * 2).toFixed(1)}-${maxTemp.toFixed(1)}°C)`, min: minTemp + step * 2, max: maxTemp + 1 }
+          ];
+        } else { // tds
+          const minTds = Math.min(...values);
+          const maxTds = Math.max(...values);
+          const range = maxTds - minTds;
+          const step = range / 3;
+          ranges = [
+            { label: `Low (${minTds.toFixed(0)}-${(minTds + step).toFixed(0)} ppm)`, min: minTds, max: minTds + step },
+            { label: `Medium (${(minTds + step).toFixed(0)}-${(minTds + step * 2).toFixed(0)} ppm)`, min: minTds + step, max: minTds + step * 2 },
+            { label: `High (${(minTds + step * 2).toFixed(0)}-${maxTds.toFixed(0)} ppm)`, min: minTds + step * 2, max: maxTds + 1 }
+          ];
+        }
+
+        // Count values in each range
+        const rangeCounts = ranges.map(range => {
+          const count = values.filter(v => v >= range.min && v < range.max).length;
+          return count;
         });
-      const phMaxRow = Number.isFinite(phStats.max) ? findRowByValue('ph', phStats.max) : undefined;
-      const phMinRow = Number.isFinite(phStats.min) ? findRowByValue('ph', phStats.min) : undefined;
-      const tempMaxRow = Number.isFinite(tempStats.max) ? findRowByValue('temp', tempStats.max) : undefined;
-      const tdsMaxRow = Number.isFinite(tdsStats.max) ? findRowByValue('tds', tdsStats.max) : undefined;
 
-      // Basic anomaly counts
-      const phOut = vals.ph.filter(v => v < 6.5 || v > 8.5).length;
-      const hotTemp = vals.temp.filter(v => v > 35).length;
-      const highTds = vals.tds.filter(v => v > 300).length;
+        // Filter out ranges with zero counts
+        const labels = ranges.map((r, i) => rangeCounts[i] > 0 ? r.label : null).filter(l => l !== null) as string[];
+        const data = rangeCounts.filter(c => c > 0);
+        
+        if (data.length === 0) {
+          return null;
+        }
 
-      // Derive time window and buoy context
-      const timeSorted = [...monthData].sort((a, b) => new Date(`${a.Date} ${a.Time}`).getTime() - new Date(`${b.Date} ${b.Time}`).getTime());
-      const firstRec = timeSorted[0];
-      const lastRec = timeSorted[timeSorted.length - 1];
-      const buoysSet = Array.from(new Set(monthData.map(d => d.Buoy)));
-      const buoyList = buoysSet.length === 1 ? buoysSet[0] : `${buoysSet.length} buoys`;
-      const zeroRows = monthData.filter(d => toNum(d.pH) === 0 && toNum(d['Temp (°C)']) === 0 && toNum(d['TDS (ppm)']) === 0);
+        const typeColors = {
+          ph: ['#3b82f6', '#10b981', '#ef4444'],
+          temp: ['#06b6d4', '#f59e0b', '#ef4444'],
+          tds: ['#10b981', '#f59e0b', '#8b5cf6']
+        };
 
-      // Build single professional narrative paragraph
-      const timeRange = firstRec && lastRec
-        ? `from ${firstRec?.Time || ''} on ${firstRec?.Date || ''} to ${lastRec?.Time || ''} on ${lastRec?.Date || ''}`
-        : `throughout ${selectedMonth}`;
-
-      const extremeEvents: string[] = [];
-      if (phMaxRow) extremeEvents.push(`maximum pH of ${fmt2(phStats.max)} on ${phMaxRow.Date} at ${phMaxRow.Time} (${phMaxRow.Buoy})`);
-      if (phMinRow) extremeEvents.push(`minimum pH of ${fmt2(phStats.min)} on ${phMinRow.Date} at ${phMinRow.Time} (${phMinRow.Buoy})`);
-      if (tempMaxRow) extremeEvents.push(`peak temperature of ${fmt2(tempStats.max)}°C on ${tempMaxRow.Date} at ${tempMaxRow.Time} (${tempMaxRow.Buoy})`);
-      if (tdsMaxRow) extremeEvents.push(`highest TDS concentration of ${fmt2(tdsStats.max)} ppm on ${tdsMaxRow.Date} at ${tdsMaxRow.Time} (${tdsMaxRow.Buoy})`);
-
-      const anomalies: string[] = [];
-      if (phOut > 0) anomalies.push(`${phOut} pH reading${phOut > 1 ? 's' : ''} outside the acceptable range of 6.5–8.5`);
-      if (hotTemp > 0) anomalies.push(`${hotTemp} temperature reading${hotTemp > 1 ? 's' : ''} exceeding 35°C`);
-      if (highTds > 0) anomalies.push(`${highTds} TDS measurement${highTds > 1 ? 's' : ''} surpassing 300 ppm`);
-
-      let narrative = `During ${selectedMonth}, the AquaNet water quality monitoring system deployed ${buoyList} to conduct comprehensive assessments of aquatic conditions, capturing ${monthData.length} valid measurements ${timeRange} through automated sensor arrays that recorded pH, temperature, and total dissolved solids (TDS) parameters with associated geospatial coordinates. `;
-      
-      narrative += `Analysis of the dataset reveals an average pH of ${fmt2(phStats.avg)} with a range from ${fmt2(phStats.min)} to ${fmt2(phStats.max)}, while temperature measurements averaged ${fmt2(tempStats.avg)}°C (ranging from ${fmt2(tempStats.min)}°C to ${fmt2(tempStats.max)}°C) and TDS concentrations averaged ${fmt2(tdsStats.avg)} ppm (ranging from ${fmt2(tdsStats.min)} to ${fmt2(tdsStats.max)} ppm). `;
-      
-      if (extremeEvents.length > 0) {
-        narrative += `Notable extreme values observed during this period include ${extremeEvents.join(', ')}. `;
-      }
-      
-      if (anomalies.length > 0) {
-        narrative += `Notable observations include ${anomalies.join(', ')}. `;
-      }
-      
-      if (zeroRows.length > 0) {
-        narrative += `Additionally, ${zeroRows.length} record${zeroRows.length > 1 ? 's' : ''} contained zero values across all parameters, potentially indicating sensor initialization periods or transmission artifacts. `;
-      }
-      
-      narrative += `Overall, the monitoring period demonstrates ${phOut > 0 || hotTemp > 0 || highTds > 0 ? 'variable conditions with several parameters exceeding typical thresholds, suggesting' : 'relatively stable water quality conditions, with'} moderate TDS levels and fluctuating pH and temperature patterns that warrant continued observation and periodic sensor calibration verification to ensure data accuracy and identify long-term environmental trends.`;
-
-      // Prepare inline SVG line graph for pH, Temp, and TDS across the month
-      const chartDataSorted = timeSorted;
-      const phSeries = chartDataSorted.map(d => toNum(d.pH));
-      const tempSeries = chartDataSorted.map(d => toNum(d['Temp (°C)']));
-      const tdsSeries = chartDataSorted.map(d => toNum(d['TDS (ppm)']));
-
-      // Chart dimensions: Reduced size for better fit - 10 cm × 5.5 cm (at 96 DPI: 378px × 209px)
-      const chartWidth = 378;
-      const chartHeight = 209;
-      const padLeft = 50;
-      const padRight = 30;
-      const padTop = 40;
-      const padBottom = 50;
-      const plotWidth = chartWidth - padLeft - padRight;
-      const plotHeight = chartHeight - padTop - padBottom;
-
-      const finiteMin = (arr: number[]) => arr.filter(n => Number.isFinite(n)).reduce((m, v) => Math.min(m, v), Number.POSITIVE_INFINITY);
-      const finiteMax = (arr: number[]) => arr.filter(n => Number.isFinite(n)).reduce((m, v) => Math.max(m, v), Number.NEGATIVE_INFINITY);
-
-      // Use fixed Y-axis range 0-350 to match the image
-      const yMinSafe = 0;
-      const yMaxSafe = 350;
-
-      const xStep = chartDataSorted.length > 1 ? plotWidth / (chartDataSorted.length - 1) : 0;
-      const scaleX = (i: number) => padLeft + i * xStep;
-      const scaleY = (v: number) => {
-        const t = (v - yMinSafe) / (yMaxSafe - yMinSafe);
-        return padTop + plotHeight - t * plotHeight;
-      };
-      const toPoints = (series: number[]) => series
-        .map((v, i) => ({ v, i }))
-        .filter(p => Number.isFinite(p.v))
-        .map(p => `${scaleX(p.i)},${scaleY(p.v)}`)
-        .join(' ');
-
-      const phPoints = toPoints(phSeries);
-      const tempPoints = toPoints(tempSeries);
-      const tdsPoints = toPoints(tdsSeries);
-      
-      // Generate Y-axis labels: 0, 50, 100, 150, 200, 250, 300, 350
-      const yTicks = 7; // 0 to 350 in steps of 50
-      const yLabels: string[] = [];
-      const yPositions: number[] = [];
-      for (let i = 0; i <= yTicks; i++) {
-        const value = i * 50; // 0, 50, 100, 150, 200, 250, 300, 350
-        yLabels.push(value.toString());
-        yPositions.push(padTop + plotHeight - (i / yTicks) * plotHeight);
-      }
-
-      // Generate grid lines
-      const gridLines = yPositions.map((y, i) => 
-        i < yPositions.length - 1 ? `<line x1="${padLeft}" y1="${y}" x2="${padLeft + plotWidth}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>` : ''
-      ).join('');
-
-      const chartSvg = `
-        <svg width="${chartWidth}" height="${chartHeight}" xmlns="http://www.w3.org/2000/svg">
-          <rect x="0" y="0" width="100%" height="100%" fill="#ffffff"/>
-          ${gridLines}
-          <line x1="${padLeft}" y1="${padTop + plotHeight}" x2="${padLeft + plotWidth}" y2="${padTop + plotHeight}" stroke="#374151" stroke-width="1.5"/>
-          <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${padTop + plotHeight}" stroke="#374151" stroke-width="1.5"/>
-          ${yLabels.map((label, i) => `<text x="${padLeft - 8}" y="${yPositions[i] + 4}" font-family="Arial" font-size="10" fill="#374151" text-anchor="end">${label}</text>`).join('')}
-          ${phPoints ? `<polyline fill="none" stroke="#2563eb" stroke-width="2.5" points="${phPoints}" />` : ''}
-          ${tempPoints ? `<polyline fill="none" stroke="#ef4444" stroke-width="2.5" points="${tempPoints}" />` : ''}
-          ${tdsPoints ? `<polyline fill="none" stroke="#10b981" stroke-width="2.5" points="${tdsPoints}" />` : ''}
-          <rect x="${padLeft}" y="${padTop - 25}" width="200" height="18" fill="#ffffff" stroke="none" />
-          <circle cx="${padLeft + 5}" cy="${padTop - 15}" r="4" fill="#2563eb"/>
-          <text x="${padLeft + 12}" y="${padTop - 11}" font-family="Arial" font-size="11" fill="#374151" font-weight="500">pH</text>
-          <circle cx="${padLeft + 60}" cy="${padTop - 15}" r="4" fill="#ef4444"/>
-          <text x="${padLeft + 67}" y="${padTop - 11}" font-family="Arial" font-size="11" fill="#374151" font-weight="500">Temp (°C)</text>
-          <circle cx="${padLeft + 140}" cy="${padTop - 15}" r="4" fill="#10b981"/>
-          <text x="${padLeft + 147}" y="${padTop - 11}" font-family="Arial" font-size="11" fill="#374151" font-weight="500">TDS (ppm)</text>
-        </svg>
-      `;
-      // Also build a PNG chart via QuickChart for better Word compatibility
-      const capped = timeSorted.slice(-100);
-      const labels = capped.map(d => {
-        const dateParts = d.Date.split('-');
-        const timeParts = d.Time.split(':');
-        return `${dateParts[1]}-${dateParts[2]} ${timeParts[0]}:${timeParts[1]}`;
-      });
-      const phData = capped.map(d => toNum(d.pH));
-      const tempData = capped.map(d => toNum(d['Temp (°C)']));
-      const tdsData = capped.map(d => toNum(d['TDS (ppm)']));
-      
-      // Redesigned graph with modern style - filled areas with gradient effect
-      const qcConfig = {
-        type: 'line',
-        data: { 
-          labels, 
-          datasets: [
-            { 
-              label: 'pH', 
-              data: phData, 
-              borderColor: '#3b82f6', 
-              backgroundColor: 'rgba(59, 130, 246, 0.15)',
-              borderWidth: 2.5,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2
-            },
-            { 
-              label: 'Temp (°C)', 
-              data: tempData, 
-              borderColor: '#ef4444', 
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              borderWidth: 2.5,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#ef4444',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2
-            },
-            { 
-              label: 'TDS (ppm)', 
-              data: tdsData, 
-              borderColor: '#10b981', 
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              borderWidth: 2.5,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#10b981',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2
-            },
-          ]
-        },
-        options: { 
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: {
-            padding: {
-              top: 10,
-              bottom: 10,
-              left: 10,
-              right: 10
-            }
+        const chartConfig = {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: typeColors[type].slice(0, labels.length),
+              borderColor: '#ffffff',
+              borderWidth: 2
+            }]
           },
-          plugins: { 
-            legend: { 
-              position: 'top',
-              align: 'center',
-              labels: {
-                usePointStyle: true,
-                padding: 15,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: `${monthKey} - ${type === 'ph' ? 'pH' : type === 'temp' ? 'Temperature' : 'TDS'} Distribution`,
                 font: {
                   size: 12,
                   family: 'Arial',
                   weight: 'bold'
                 },
                 color: '#1f2937'
+              },
+              legend: {
+                position: 'right',
+                labels: {
+                  font: {
+                    size: 9,
+                    family: 'Arial'
+                  },
+                  padding: 8
+                }
               }
-            },
-            title: {
-              display: false
-            },
-            tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              padding: 12,
-              titleFont: {
-                size: 13,
-                family: 'Arial',
-                weight: 'bold'
-              },
-              bodyFont: {
-                size: 12,
-                family: 'Arial'
-              },
-              borderColor: 'rgba(255, 255, 255, 0.1)',
-              borderWidth: 1,
-              cornerRadius: 6
-            }
-          }, 
-          scales: { 
-            x: {
-              display: true,
-              grid: {
-                display: true,
-                color: 'rgba(0, 0, 0, 0.08)',
-                drawBorder: true,
-                borderColor: '#d1d5db',
-                borderWidth: 1.5
-              },
-              ticks: {
-                font: {
-                  size: 10,
-                  family: 'Arial'
-                },
-                maxRotation: 45,
-                minRotation: 45,
-                color: '#4b5563',
-                padding: 8
-              }
-            },
-            y: { 
-              beginAtZero: true,
-              display: true,
-              min: 0,
-              max: 350,
-              ticks: {
-                stepSize: 50,
-                font: {
-                  size: 11,
-                  family: 'Arial',
-                  weight: '500'
-                },
-                color: '#4b5563',
-                padding: 10
-              },
-              grid: {
-                display: true,
-                color: 'rgba(0, 0, 0, 0.08)',
-                drawBorder: true,
-                borderColor: '#d1d5db',
-                borderWidth: 1.5
-              }
-            } 
-          },
-          elements: {
-            line: {
-              tension: 0.4,
-              borderJoinStyle: 'round',
-              borderCapStyle: 'round'
-            },
-            point: {
-              hoverRadius: 5,
-              hoverBorderWidth: 3
             }
           }
+        };
+        
+        return `https://quickchart.io/chart?width=350&height=280&format=png&chart=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+      };
+
+      // Generate pie chart URLs for each month (pH, Temp, TDS for each month)
+      const pieChartUrls = new Map<string, { ph: string | null; temp: string | null; tds: string | null }>();
+      dataByMonth.forEach((monthData, monthKey) => {
+        pieChartUrls.set(monthKey, {
+          ph: generatePieChartForMonth(monthKey, monthData, 'ph'),
+          temp: generatePieChartForMonth(monthKey, monthData, 'temp'),
+          tds: generatePieChartForMonth(monthKey, monthData, 'tds')
+        });
+      });
+
+      // Generate line graph for EACH available month showing TDS, pH, and Temperature over time
+      const generateLineChartForMonth = (monthKey: string, monthData: BuoyData[]) => {
+        const timeSorted = [...monthData].sort((a, b) => {
+          const dateA = new Date(`${a.Date} ${a.Time}`);
+          const dateB = new Date(`${b.Date} ${b.Time}`);
+          return dateA.getTime() - dateB.getTime();
+        });
+
+        // Prepare labels and data for line graph
+        const labels = timeSorted.map(d => {
+          try {
+            const dateParts = d.Date.includes('-') ? d.Date.split('-') : d.Date.split('/');
+            const timeParts = d.Time.split(':');
+            if (dateParts.length >= 3) {
+              return `${dateParts[1]}-${dateParts[2]} ${timeParts[0]}:${timeParts[1]}`;
+            }
+            return `${d.Date} ${d.Time}`;
+          } catch {
+            return `${d.Date} ${d.Time}`;
+          }
+        });
+        
+        const phData = timeSorted.map(d => toNum(d.pH));
+        const tempData = timeSorted.map(d => toNum(d['Temp (°C)']));
+        const tdsData = timeSorted.map(d => toNum(d['TDS (ppm)']));
+        
+        // Generate line graph for this month
+        const lineChartConfig = {
+          type: 'line',
+          data: { 
+            labels: labels.length > 50 ? labels.filter((_, i) => i % Math.ceil(labels.length / 50) === 0) : labels, 
+            datasets: [
+              { 
+                label: 'pH', 
+                data: phData.length > 50 ? phData.filter((_, i) => i % Math.ceil(phData.length / 50) === 0) : phData, 
+                borderColor: '#3b82f6', 
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                fill: true,
+                tension: 0.4
+              },
+              { 
+                label: 'Temp (°C)', 
+                data: tempData.length > 50 ? tempData.filter((_, i) => i % Math.ceil(tempData.length / 50) === 0) : tempData, 
+                borderColor: '#ef4444', 
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                fill: true,
+                tension: 0.4
+              },
+              { 
+                label: 'TDS (ppm)', 
+                data: tdsData.length > 50 ? tdsData.filter((_, i) => i % Math.ceil(tdsData.length / 50) === 0) : tdsData, 
+                borderColor: '#10b981', 
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                fill: true,
+                tension: 0.4
+              },
+            ]
+          },
+          options: { 
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+              legend: { 
+                position: 'top',
+                align: 'center',
+                labels: {
+                  usePointStyle: true,
+                  padding: 15,
+                  font: { size: 12, family: 'Arial', weight: 'bold' },
+                  color: '#1f2937'
+                }
+              },
+              title: {
+                display: true,
+                text: `${monthKey} - TDS, pH, and Temperature Over Time`,
+                font: { size: 14, family: 'Arial', weight: 'bold' },
+                color: '#1f2937'
+              }
+            }, 
+            scales: { 
+              x: {
+                display: true,
+                ticks: {
+                  font: { size: 9, family: 'Arial' },
+                  maxRotation: 45,
+                  minRotation: 45
+                }
+              },
+              y: { 
+                beginAtZero: true,
+                display: true,
+                ticks: {
+                  font: { size: 10, family: 'Arial' }
+                }
+              } 
+            }
+          }
+        };
+        
+        return `https://quickchart.io/chart?width=600&height=400&format=png&chart=${encodeURIComponent(JSON.stringify(lineChartConfig))}`;
+      };
+
+      // Generate line chart URLs for all months
+      const lineChartUrls = new Map<string, string>();
+      dataByMonth.forEach((monthData, monthKey) => {
+        lineChartUrls.set(monthKey, generateLineChartForMonth(monthKey, monthData));
+      });
+      
+      // Download pie chart images
+      const downloadChartImage = async (url: string, name: string): Promise<string> => {
+        try {
+          const targetDir = ((FileSystem as any).cacheDirectory) || ((FileSystem as any).documentDirectory) || '';
+          const chartPath = targetDir + `${name}_${Date.now()}.png`;
+          const dl = await (FileSystem as any).downloadAsync(url, chartPath);
+          const base64 = await (FileSystem as any).readAsStringAsync(dl.uri, { encoding: 'base64' });
+          return `<img src="data:image/png;base64,${base64}" alt="${name}" style="width:100%;max-width:400px;height:auto;border:1px solid #d1d5db;border-radius:4px;display:block;margin:15px auto;page-break-inside:avoid;" />`;
+        } catch (e) {
+          console.error(`Error downloading ${name}:`, e);
+          return `<div style="text-align:center;padding:20px;border:1px solid #d1d5db;margin:15px auto;">Error loading ${name}</div>`;
         }
       };
-       const qcUrl = `https://quickchart.io/chart?width=378&height=209&format=png&chart=${encodeURIComponent(JSON.stringify(qcConfig))}`;
-       let chartImgTag = '';
-       try {
-         const targetDir = ((FileSystem as any).cacheDirectory) || ((FileSystem as any).documentDirectory) || '';
-         const chartPath = targetDir + `chart_${Date.now()}.png`;
-         const dl = await (FileSystem as any).downloadAsync(qcUrl, chartPath);
-         const base64 = await (FileSystem as any).readAsStringAsync(dl.uri, { encoding: 'base64' });
-         chartImgTag = `<img src="data:image/png;base64,${base64}" alt="Line graph" style="width:10cm;height:5.5cm;max-width:378px;max-height:209px;border:1px solid #d1d5db;border-radius:4px;display:block;margin:15px auto;page-break-inside:avoid;" />`;
-       } catch (e) {
-         chartImgTag = `<div style="width:10cm;height:5.5cm;max-width:378px;max-height:209px;margin:15px auto;text-align:center;page-break-inside:avoid;">${chartSvg}</div>`; // fallback to inline SVG
-       }
-      const rows = monthData.map(d => `
+
+      // Download all pie charts for each month
+      const pieChartImages = new Map<string, { ph: string; temp: string; tds: string }>();
+      for (const [monthKey, urls] of pieChartUrls.entries()) {
+        const [phImg, tempImg, tdsImg] = await Promise.all([
+          urls.ph ? downloadChartImage(urls.ph, `ph_pie_${monthKey.replace(/\s/g, '_')}`) : Promise.resolve('<div style="text-align:center;padding:20px;">No pH data</div>'),
+          urls.temp ? downloadChartImage(urls.temp, `temp_pie_${monthKey.replace(/\s/g, '_')}`) : Promise.resolve('<div style="text-align:center;padding:20px;">No Temp data</div>'),
+          urls.tds ? downloadChartImage(urls.tds, `tds_pie_${monthKey.replace(/\s/g, '_')}`) : Promise.resolve('<div style="text-align:center;padding:20px;">No TDS data</div>')
+        ]);
+        pieChartImages.set(monthKey, { ph: phImg, temp: tempImg, tds: tdsImg });
+      }
+
+      // Download all line charts for each month
+      const lineChartImages = new Map<string, string>();
+      for (const [monthKey, url] of lineChartUrls.entries()) {
+        const img = await downloadChartImage(url, `line_chart_${monthKey.replace(/\s/g, '_')}`);
+        lineChartImages.set(monthKey, img);
+      }
+      // Generate table rows for all data (all months combined)
+      const allValidData: BuoyData[] = [];
+      dataByMonth.forEach((monthData) => {
+        allValidData.push(...monthData);
+      });
+      
+      // Sort all data by date
+      const sortedAllData = allValidData.sort((a, b) => {
+        const dateA = new Date(`${a.Date} ${a.Time}`);
+        const dateB = new Date(`${b.Date} ${b.Time}`);
+        return dateB.getTime() - dateA.getTime(); // Newest first
+      });
+      
+      const rows = sortedAllData.map(d => `
         <tr>
           <td style="padding:6px;border:1px solid #e5e7eb">${d.Buoy}</td>
           <td style="padding:6px;border:1px solid #e5e7eb">${d.Date}</td>
@@ -566,7 +515,7 @@ const GraphScreen = () => {
         <html>
           <head>
             <meta charset="UTF-8" />
-            <title>AquaNet Narrative Report - ${selectedMonth}</title>
+            <title>AquaNet Water Quality Report - All Months</title>
             <style>
               * {
                 margin: 0;
@@ -619,21 +568,50 @@ const GraphScreen = () => {
             </style>
           </head>
           <body>
+            ${Array.from(dataByMonth.keys()).sort((a, b) => {
+              const dateA = new Date(a);
+              const dateB = new Date(b);
+              return dateB.getTime() - dateA.getTime();
+            }).map(monthKey => {
+              const pieCharts = pieChartImages.get(monthKey);
+              const lineChart = lineChartImages.get(monthKey);
+              return `
             <div class="page">
               <div class="page-header">${headerImg}</div>
               <div class="content-container">
-       
-                <h2>${selectedMonth}</h2>
-                <p>${narrative}</p>
+                <h2>Water Quality Report - ${monthKey}</h2>
                 
-                <h3>Line Graph Overview</h3>
-                <div class="chart-wrapper">${chartImgTag}</div>
+                <h3>Distribution Charts - ${monthKey}</h3>
+                <div style="display:flex;flex-wrap:wrap;justify-content:space-around;margin:20px 0;">
+                  <div style="flex:1;min-width:300px;margin:10px;">
+                    <h4 style="text-align:center;font-size:11pt;margin-bottom:10px;">pH Distribution</h4>
+                    ${pieCharts?.ph || '<div style="text-align:center;padding:20px;">No pH data</div>'}
+                  </div>
+                  <div style="flex:1;min-width:300px;margin:10px;">
+                    <h4 style="text-align:center;font-size:11pt;margin-bottom:10px;">Temperature Distribution</h4>
+                    ${pieCharts?.temp || '<div style="text-align:center;padding:20px;">No Temp data</div>'}
+                  </div>
+                  <div style="flex:1;min-width:300px;margin:10px;">
+                    <h4 style="text-align:center;font-size:11pt;margin-bottom:10px;">TDS Distribution</h4>
+                    ${pieCharts?.tds || '<div style="text-align:center;padding:20px;">No TDS data</div>'}
+                  </div>
+                </div>
               </div>
             </div>
+            <div class="page">
+              <div class="content-container">
+                <h3>Line Graph - ${monthKey}</h3>
+                <p style="font-size:9pt;color:#64748b;margin-bottom:15px;">TDS, pH, and Temperature trends over time for ${monthKey} (${dataByMonth.get(monthKey)?.length || 0} records)</p>
+                <div class="chart-wrapper">${lineChart || '<div style="text-align:center;padding:20px;">No line chart data</div>'}</div>
+              </div>
+            </div>
+            `;
+            }).join('')}
             
             <div class="page">
               <div class="content-container">
-                <h3>Detailed Water Quality Data</h3>
+                <h3>Complete Data Table - All Months</h3>
+                <p style="font-size:9pt;color:#64748b;margin-bottom:15px;">All available data from all months (${sortedAllData.length} records)</p>
                 <table>
                   <thead>
                     <tr>
@@ -655,7 +633,7 @@ const GraphScreen = () => {
         </html>`;
 
       // Save as PDF
-      const fileName = `AquaNet_Narrative_Report_${selectedMonth.replace(/\s/g, '_')}`;
+      const fileName = `AquaNet_Water_Quality_Report_All_Months`;
 
       if (Platform.OS === 'web') {
         // Web: use html2pdf to generate proper PDF from HTML
@@ -877,49 +855,22 @@ const GraphScreen = () => {
             </View>
           )}
 
-          {/* Narrative Report Section */}
+          {/* Report Section */}
           <View style={styles.reportSection}>
-            <Text style={styles.reportTitle}>Download Narrative Report</Text>
-            <Text style={styles.reportSubtitle}>Choose a month to generate a Word report</Text>
-
-            <View style={styles.monthPickerContainer}>
-              <TouchableOpacity
-                style={styles.monthPicker}
-                onPress={() => setShowMonthPicker(!showMonthPicker)}
-                disabled={availableMonths.length === 0}
-              >
-                <Text style={styles.monthPickerText}>
-                  {selectedMonth || 'No months available'}
-                </Text>
-                <Ionicons name={showMonthPicker ? 'chevron-up' : 'chevron-down'} size={16} color="#64748b" />
-              </TouchableOpacity>
-
-              {showMonthPicker && (
-                <View style={styles.monthList}>
-                  {availableMonths.map(m => (
-                    <TouchableOpacity
-                      key={m}
-                      style={[styles.monthItem, selectedMonth === m && styles.monthItemSelected]}
-                      onPress={() => { setSelectedMonth(m); setShowMonthPicker(false); }}
-                    >
-                      <Text style={[styles.monthItemText, selectedMonth === m && styles.monthItemTextSelected]}>{m}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
+            <Text style={styles.reportTitle}>Download Water Quality Report</Text>
+            <Text style={styles.reportSubtitle}>Download a comprehensive report with charts and data for all available months</Text>
 
             <TouchableOpacity
-              style={[styles.downloadButton, (!selectedMonth || generating) && styles.downloadButtonDisabled]}
+              style={[styles.downloadButton, generating && styles.downloadButtonDisabled]}
               onPress={generateNarrativeReport}
-              disabled={!selectedMonth || generating}
+              disabled={generating}
             >
               {generating ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
                 <>
                   <Ionicons name="download" size={18} color="#ffffff" />
-                  <Text style={styles.downloadButtonText}>Download</Text>
+                  <Text style={styles.downloadButtonText}>Download All Months Report</Text>
                 </>
               )}
             </TouchableOpacity>
