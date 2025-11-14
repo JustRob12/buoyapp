@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import HomeScreen from '../screens/HomeScreen';
 import { useAuth } from '../contexts/AuthContext';
 
 interface AuthNavigatorProps {
@@ -9,7 +10,7 @@ interface AuthNavigatorProps {
 }
 
 const AuthNavigator: React.FC<AuthNavigatorProps> = ({ onAuthSuccess }) => {
-  const [currentScreen, setCurrentScreen] = useState<'login' | 'register'>('login');
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'login' | 'register'>('home');
   const { loading } = useAuth();
 
   if (loading) {
@@ -38,9 +39,18 @@ const AuthNavigator: React.FC<AuthNavigatorProps> = ({ onAuthSuccess }) => {
     setCurrentScreen('login');
   };
 
+  const navigateToHome = () => {
+    setCurrentScreen('home');
+  };
+
   return (
     <View style={styles.container}>
-      {currentScreen === 'login' ? (
+      {currentScreen === 'home' ? (
+        <HomeScreen
+          onNavigateToLogin={navigateToLogin}
+          onNavigateToRegister={navigateToRegister}
+        />
+      ) : currentScreen === 'login' ? (
         <LoginScreen
           onLoginSuccess={handleLoginSuccess}
           onNavigateToRegister={navigateToRegister}
