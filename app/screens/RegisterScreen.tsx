@@ -38,7 +38,29 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
     return emailRegex.test(email);
   };
 
-  // Remove username validation since we're using email as username
+  const validatePassword = (password: string): { valid: boolean; message: string } => {
+    if (password.length < 8) {
+      return { valid: false, message: 'Password must be at least 8 characters long' };
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one uppercase letter' };
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one lowercase letter' };
+    }
+    
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one number' };
+    }
+    
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)' };
+    }
+    
+    return { valid: true, message: '' };
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -71,8 +93,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+    // Strict password validation
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      Alert.alert('Password Requirements', passwordValidation.message + '\n\nPassword must:\n• Be at least 8 characters long\n• Contain at least one uppercase letter\n• Contain at least one lowercase letter\n• Contain at least one number\n• Contain at least one special character');
       return;
     }
 
@@ -173,6 +197,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
                 color="#64748b" 
               />
             </TouchableOpacity>
+          </View>
+          
+          {/* Password Requirements Info */}
+          <View style={styles.passwordRequirements}>
+            <Ionicons name="shield-checkmark-outline" size={14} color="#0ea5e9" />
+            <Text style={styles.passwordRequirementsText}>
+              Password must be at least 8 characters with uppercase, lowercase, number, and special character
+            </Text>
           </View>
 
           <View style={styles.inputContainer}>
@@ -309,6 +341,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1e40af',
     lineHeight: 16,
+  },
+  passwordRequirements: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f0f9ff',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: -8,
+    marginBottom: 16,
+  },
+  passwordRequirementsText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 11,
+    color: '#0c4a6e',
+    lineHeight: 14,
   },
   registerButton: {
     backgroundColor: '#0ea5e9',

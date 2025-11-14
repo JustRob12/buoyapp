@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import BuoyCard from '../components/BuoyCard';
 import BuoyCardList from '../components/BuoyCardList';
 import BuoyDropdown from '../components/BuoyDropdown';
-import { getLatestBuoyData, getLatestBuoyDataForMultipleBuoys, getLatestBuoyDataForSpecificBuoy, getAvailableBuoyNumbers, BuoyData } from '../services/buoyService';
+import { getLatestBuoyData, getLatestBuoyDataForMultipleBuoys, getLatestBuoyDataForSpecificBuoy, getAvailableBuoyNumbers, getLatestBuoyDataForGraph, BuoyData } from '../services/buoyService';
 import { settingsService, loadSettings } from '../services/settingsService';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { sendNewDataNotification } from '../services/notificationService';
@@ -21,30 +21,91 @@ const DashboardScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  // Cache for buoy data to avoid redundant API calls
+  const buoyDataCache = React.useRef<Map<number, { data: BuoyData; timestamp: number }>>(new Map());
+
+  // Helper function to check if a date is valid (not like 2065)
+  const isValidDate = (dateStr: string, timeStr: string): boolean => {
+    try {
+      const date = new Date(`${dateStr} ${timeStr}`);
+      const year = date.getFullYear();
+      // Only accept dates between 2020 and 2030 (reasonable range)
+      return year >= 2020 && year <= 2030 && !isNaN(date.getTime());
+    } catch {
+      return false;
+    }
+  };
 
   const fetchAvailableBuoyNumbers = async () => {
     try {
-      const buoyNumbers = await getAvailableBuoyNumbers();
-      setAvailableBuoyNumbers(buoyNumbers);
+      // Fetch all latest buoy data at once (much faster than sequential calls)
+      const latestData = await getLatestBuoyDataForGraph(50); // Get latest 50 records
+      
+      // Extract unique buoy numbers from the fetched data and cache them
+      const buoyMap = new Map<number, BuoyData>();
+      
+      latestData.forEach((data: BuoyData) => {
+        const buoyName = data.Buoy.trim();
+        const match = buoyName.match(/Buoy\s*(\d+)/i);
+        if (match) {
+          const buoyNumber = parseInt(match[1]);
+          
+          // Only keep the latest valid data for each buoy
+          if (isValidDate(data.Date, data.Time)) {
+            const existing = buoyMap.get(buoyNumber);
+            if (!existing) {
+              buoyMap.set(buoyNumber, data);
+            } else {
+              // Keep the most recent data
+              const existingDate = new Date(`${existing.Date} ${existing.Time}`);
+              const currentDate = new Date(`${data.Date} ${data.Time}`);
+              if (currentDate > existingDate) {
+                buoyMap.set(buoyNumber, data);
+              }
+            }
+          }
+        }
+      });
+      
+      // Cache the fetched data for quick access
+      const now = Date.now();
+      buoyMap.forEach((data, buoyNumber) => {
+        buoyDataCache.current.set(buoyNumber, { data, timestamp: now });
+      });
+      
+      // Get sorted list of valid buoy numbers
+      const validBuoyNumbers = Array.from(buoyMap.keys()).sort((a, b) => a - b);
+      
+      setAvailableBuoyNumbers(validBuoyNumbers);
       
       // Load settings and set default buoy selection
       const settings = await loadSettings();
       const defaultBuoy = settings.defaultBuoySelection;
       
       // Set the default buoy from settings, or first available if not found
-      if (buoyNumbers.length > 0) {
-        if (buoyNumbers.includes(defaultBuoy)) {
+      if (validBuoyNumbers.length > 0) {
+        if (validBuoyNumbers.includes(defaultBuoy)) {
           setSelectedBuoyCount(defaultBuoy);
         } else {
-          setSelectedBuoyCount(buoyNumbers[0]);
+          setSelectedBuoyCount(validBuoyNumbers[0]);
         }
       }
     } catch (err) {
       console.error('Error fetching available buoy numbers:', err);
+      // Fallback: try to get available buoy numbers without validation
+      try {
+        const allBuoyNumbers = await getAvailableBuoyNumbers();
+        if (allBuoyNumbers.length > 0) {
+          setAvailableBuoyNumbers(allBuoyNumbers);
+          setSelectedBuoyCount(allBuoyNumbers[0]);
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback also failed:', fallbackErr);
+      }
     }
   };
 
-  const fetchLatestData = async (isBuoyChange: boolean = false) => {
+  const fetchLatestData = async (isBuoyChange: boolean = false, forceRefresh: boolean = false) => {
     try {
       setError(null);
       if (isBuoyChange) {
@@ -54,40 +115,67 @@ const DashboardScreen = () => {
       let selectedBuoyData: BuoyData | null = null;
       let isOfflineData = false;
       
-      // First, try to get data from API
-      try {
-        selectedBuoyData = await getLatestBuoyDataForSpecificBuoy(selectedBuoyCount);
-        
-        // If we got data from API and offline mode is enabled, cache it
-        if (selectedBuoyData && isOfflineModeEnabled()) {
-          await cacheBuoyData([selectedBuoyData]);
+      // First, check cache (if not forcing refresh and cache is recent - less than 30 seconds old)
+      if (!forceRefresh) {
+        const cached = buoyDataCache.current.get(selectedBuoyCount);
+        const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+        if (cached && cacheAge < 30000) { // Use cache if less than 30 seconds old
+          selectedBuoyData = cached.data;
+          console.log('Using cached data for Buoy', selectedBuoyCount);
         }
-        setIsOfflineMode(false);
-      } catch (apiError) {
-        console.log('API fetch failed, trying offline data...');
-        
-        // If API fails, try to get cached offline data
-        if (isOfflineModeEnabled()) {
-          const cachedData = await getCachedBuoyData();
-          if (cachedData && cachedData.length > 0) {
-            // Find data for the selected buoy
-            const buoyData = cachedData.find(data => {
-              const buoyName = data.Buoy.trim();
-              const match = buoyName.match(/Buoy\s*(\d+)/i);
-              return match && parseInt(match[1]) === selectedBuoyCount;
-            });
-            
-            if (buoyData) {
-              selectedBuoyData = buoyData;
-              isOfflineData = true;
-              setIsOfflineMode(true);
-              console.log('Using offline cached data');
+      }
+      
+      // If no cached data, fetch from API
+      if (!selectedBuoyData) {
+        try {
+          selectedBuoyData = await getLatestBuoyDataForSpecificBuoy(selectedBuoyCount);
+          
+          // Validate the date before using the data
+          if (selectedBuoyData && !isValidDate(selectedBuoyData.Date, selectedBuoyData.Time)) {
+            console.log('Invalid date detected, treating as no data');
+            selectedBuoyData = null;
+            throw new Error('Invalid date in buoy data');
+          }
+          
+          // Update cache with fresh data
+          if (selectedBuoyData) {
+            buoyDataCache.current.set(selectedBuoyCount, { data: selectedBuoyData, timestamp: Date.now() });
+          }
+          
+          // If we got data from API and offline mode is enabled, cache it
+          if (selectedBuoyData && isOfflineModeEnabled()) {
+            await cacheBuoyData([selectedBuoyData]);
+          }
+          setIsOfflineMode(false);
+        } catch (apiError) {
+          console.log('API fetch failed, trying offline data...');
+          
+          // If API fails, try to get cached offline data
+          if (isOfflineModeEnabled()) {
+            const cachedData = await getCachedBuoyData();
+            if (cachedData && cachedData.length > 0) {
+              // Find data for the selected buoy
+              const buoyData = cachedData.find(data => {
+                const buoyName = data.Buoy.trim();
+                const match = buoyName.match(/Buoy\s*(\d+)/i);
+                return match && parseInt(match[1]) === selectedBuoyCount;
+              });
+              
+              // Validate the date before using cached data
+              if (buoyData && isValidDate(buoyData.Date, buoyData.Time)) {
+                selectedBuoyData = buoyData;
+                isOfflineData = true;
+                setIsOfflineMode(true);
+                console.log('Using offline cached data');
+              } else if (buoyData) {
+                console.log('Cached data has invalid date, skipping');
+              }
             }
           }
-        }
-        
-        if (!selectedBuoyData) {
-          throw apiError; // Re-throw if no offline data available
+          
+          if (!selectedBuoyData) {
+            throw apiError; // Re-throw if no offline data available
+          }
         }
       }
       
@@ -122,13 +210,13 @@ const DashboardScreen = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLatestData(false);
+    await fetchLatestData(false, true); // Force refresh on pull-to-refresh
     setRefreshing(false);
   };
 
   const onRefreshButtonPress = async () => {
     setLoading(true);
-    await fetchLatestData(false);
+    await fetchLatestData(false, true); // Force refresh on button press
   };
 
   // Auto-refresh functionality

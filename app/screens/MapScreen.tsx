@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import BuoyMap from '../components/BuoyMap';
@@ -37,48 +37,40 @@ const MapScreen = () => {
   return (
     <View style={styles.container}>
       <Header title="AquaNet" />
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <View style={styles.content}>
-          <View style={styles.headerRow}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>Buoy Locations</Text>
-              <Text style={styles.subtitle}>Real-time sensor network map</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={onRefresh}
-              disabled={refreshing}
-            >
-              {refreshing ? (
-                <ActivityIndicator size="small" color="#0ea5e9" />
-              ) : (
-                <Ionicons name="refresh-outline" size={20} color="#0ea5e9" />
-              )}
-            </TouchableOpacity>
+      <View style={styles.content}>
+        <View style={styles.headerRow}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Buoy Locations</Text>
+            <Text style={styles.subtitle}>Real-time sensor network map</Text>
           </View>
-          
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0ea5e9" />
-              <Text style={styles.loadingText}>Loading map data...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : (
-            <View style={styles.mapContainer}>
-              <BuoyMap data={mapData} />
-            </View>
-          )}
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={onRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color="#0ea5e9" />
+            ) : (
+              <Ionicons name="refresh-outline" size={20} color="#0ea5e9" />
+            )}
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+        
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0ea5e9" />
+            <Text style={styles.loadingText}>Loading map data...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : (
+          <View style={styles.mapContainer}>
+            <BuoyMap data={mapData} />
+          </View>
+        )}
+      </View>
     </View>
   );
 };
@@ -87,12 +79,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   content: {
     flex: 1,
@@ -129,6 +115,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
+    marginBottom: 16,
     shadowColor: '#0ea5e9',
     shadowOffset: {
       width: 0,

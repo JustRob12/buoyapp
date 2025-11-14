@@ -34,7 +34,9 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
   const [showChartDropdown, setShowChartDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showParameterDropdown, setShowParameterDropdown] = useState(false);
+  const [showBuoyDropdown, setShowBuoyDropdown] = useState(false);
   const [selectedParameter, setSelectedParameter] = useState<'pH' | 'temp' | 'tds'>('pH');
+  const [selectedBuoy, setSelectedBuoy] = useState<string>('All Buoys');
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   const chartOptions: { label: string; value: ChartType; icon: string; color: string }[] = [
@@ -73,15 +75,55 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
     return parameterOptions.find(option => option.value === selectedParameter);
   };
 
-  // Filter data based on selected time period
-  const filterDataByTimePeriod = (data: BuoyData[], period: TimePeriod): BuoyData[] => {
+  // Helper function to check if a date is valid (not like 2065)
+  const isValidDate = (dateStr: string, timeStr: string): boolean => {
+    try {
+      const date = new Date(`${dateStr} ${timeStr}`);
+      const year = date.getFullYear();
+      // Only accept dates between 2020 and 2030 (reasonable range)
+      return year >= 2020 && year <= 2030 && !isNaN(date.getTime());
+    } catch {
+      return false;
+    }
+  };
+
+  // Get unique buoys from valid data only
+  const availableBuoys = useMemo(() => {
     if (!data || data.length === 0) return [];
     
-    console.log('🔍 Filtering data for period:', period);
-    console.log('📅 Available dates in data:', [...new Set(data.map(item => item.Date))]);
+    const validBuoys = new Set<string>();
+    data.forEach(item => {
+      if (isValidDate(item.Date, item.Time) && item.Buoy) {
+        validBuoys.add(item.Buoy);
+      }
+    });
+    
+    return Array.from(validBuoys).sort();
+  }, [data]);
+
+  // Filter data based on selected time period and buoy
+  const filterDataByTimePeriod = (data: BuoyData[], period: TimePeriod, buoyFilter: string = 'All Buoys'): BuoyData[] => {
+    if (!data || data.length === 0) return [];
+    
+    console.log('🔍 Filtering data for period:', period, 'and buoy:', buoyFilter);
+    
+    // First filter by valid dates and selected buoy
+    let filteredData = data.filter(item => {
+      // Filter out invalid dates
+      if (!isValidDate(item.Date, item.Time)) {
+        return false;
+      }
+      
+      // Filter by buoy if not "All Buoys"
+      if (buoyFilter !== 'All Buoys' && item.Buoy !== buoyFilter) {
+        return false;
+      }
+      
+      return true;
+    });
     
     const now = new Date();
-    const filteredData = data.filter(item => {
+    filteredData = filteredData.filter(item => {
       const itemDate = new Date(`${item.Date} ${item.Time}`);
       
       switch (period) {
@@ -123,17 +165,17 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
 
   // Memoize processed data to prevent unnecessary recalculations
   const processedData = useMemo(() => {
-    console.log('🔄 BuoyGraph: Processing data for time period:', selectedTimePeriod);
+    console.log('🔄 BuoyGraph: Processing data for time period:', selectedTimePeriod, 'buoy:', selectedBuoy);
     if (!data || data.length === 0) {
       console.log('⚠️ BuoyGraph: No data to process');
       return [];
     }
-    const filteredData = filterDataByTimePeriod(data, selectedTimePeriod);
+    const filteredData = filterDataByTimePeriod(data, selectedTimePeriod, selectedBuoy);
     console.log('📅 BuoyGraph: Filtered data:', filteredData.length, 'records');
     const result = filteredData.slice(-50); // Limit to last 50 data points for performance
     console.log('✂️ BuoyGraph: Final processed data:', result.length, 'records');
     return result;
-  }, [data, selectedTimePeriod]);
+  }, [data, selectedTimePeriod, selectedBuoy]);
   
   // Safety check - if no data, show empty state with helpful message
   if (!processedData || processedData.length === 0) {
@@ -168,6 +210,27 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
                   <Text style={styles.dropdownText}>{getSelectedTimeOption()?.label}</Text>
                   <Ionicons name="chevron-down" size={getResponsiveIconSize(16)} color="#64748b" />
                 </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Buoy Filter Row */}
+          <View style={styles.controlRow}>
+            <View style={styles.dropdownContainer}>
+              <Text style={styles.dropdownLabel}>Buoy Filter</Text>
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => setShowBuoyDropdown(true)}
+              >
+                <View style={styles.dropdownContent}>
+                  <Ionicons 
+                    name="location" 
+                    size={getResponsiveIconSize(18)} 
+                    color="#22c55e" 
+                  />
+                  <Text style={styles.dropdownText}>{selectedBuoy}</Text>
+                </View>
+                <Ionicons name="chevron-down" size={getResponsiveIconSize(16)} color="#64748b" />
               </TouchableOpacity>
             </View>
           </View>
@@ -236,6 +299,70 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
                 >
                   <Ionicons name={option.icon as any} size={20} color="#0ea5e9" />
                   <Text style={styles.dropdownOptionText}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        <Modal
+          visible={showBuoyDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowBuoyDropdown(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowBuoyDropdown(false)}
+          >
+            <View style={styles.dropdownModal}>
+              <Text style={styles.modalTitle}>Select Buoy</Text>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownOption,
+                  selectedBuoy === 'All Buoys' && styles.selectedOption
+                ]}
+                onPress={() => {
+                  setSelectedBuoy('All Buoys');
+                  setShowBuoyDropdown(false);
+                }}
+              >
+                <Ionicons 
+                  name="layers" 
+                  size={getResponsiveIconSize(20)} 
+                  color={selectedBuoy === 'All Buoys' ? "#ffffff" : "#22c55e"} 
+                />
+                <Text style={[
+                  styles.dropdownOptionText,
+                  selectedBuoy === 'All Buoys' && styles.selectedOptionText
+                ]}>
+                  All Buoys
+                </Text>
+              </TouchableOpacity>
+              {availableBuoys.map((buoy) => (
+                <TouchableOpacity
+                  key={buoy}
+                  style={[
+                    styles.dropdownOption,
+                    selectedBuoy === buoy && styles.selectedOption
+                  ]}
+                  onPress={() => {
+                    setSelectedBuoy(buoy);
+                    setShowBuoyDropdown(false);
+                  }}
+                >
+                  <Ionicons 
+                    name="location" 
+                    size={getResponsiveIconSize(20)} 
+                    color={selectedBuoy === buoy ? "#ffffff" : "#22c55e"} 
+                  />
+                  <Text style={[
+                    styles.dropdownOptionText,
+                    selectedBuoy === buoy && styles.selectedOptionText
+                  ]}>
+                    {buoy}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -637,6 +764,11 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
     const monthlyData = useMemo(() => {
       const grouped = data.reduce((acc, item) => {
         try {
+          // Only process valid dates
+          if (!isValidDate(item.Date, item.Time)) {
+            return acc;
+          }
+          
           const date = new Date(`${item.Date} ${item.Time}`);
           const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
           
@@ -842,11 +974,16 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
   const MonthlyPieChart = ({ data }: { data: BuoyData[] }) => {
     const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
     
-    // Group data by month
+    // Group data by month (only valid dates)
     const monthlyData = useMemo(() => {
       const monthGroups: { [key: string]: BuoyData[] } = {};
       
       data.forEach(item => {
+        // Only process valid dates
+        if (!isValidDate(item.Date, item.Time)) {
+          return;
+        }
+        
         const date = new Date(`${item.Date} ${item.Time}`);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -929,7 +1066,11 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
 
     return (
       <View style={styles.pieChartContainer}>
-        <Text style={styles.pieChartTitle}>Monthly Data Comparison</Text>
+        <Text style={styles.pieChartTitle}>Monthly Data Distribution</Text>
+        <Text style={styles.pieChartDescription}>
+          This chart shows the distribution of data points across different months. 
+          Each slice represents the percentage of total readings for that month.
+        </Text>
         <View style={styles.pieChartContent}>
           <View style={styles.pieChartSvg}>
             <Svg width={pieSize} height={pieSize}>
@@ -951,7 +1092,7 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
                 <View style={styles.pieLegendText}>
                   <Text style={styles.pieLegendMonth}>{slice.month}</Text>
                   <Text style={styles.pieLegendDetails}>
-                    {slice.percentage}%
+                    {slice.percentage}% ({slice.count} readings)
                   </Text>
                 </View>
               </View>
@@ -1062,6 +1203,27 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
           </View>
         </View>
 
+        {/* Buoy Filter Row */}
+        <View style={styles.controlRow}>
+          <View style={styles.dropdownContainer}>
+            <Text style={styles.dropdownLabel}>Buoy Filter</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowBuoyDropdown(true)}
+            >
+              <View style={styles.dropdownContent}>
+                <Ionicons 
+                  name="location" 
+                  size={getResponsiveIconSize(18)} 
+                  color="#22c55e" 
+                />
+                <Text style={styles.dropdownText}>{selectedBuoy}</Text>
+              </View>
+              <Ionicons name="chevron-down" size={getResponsiveIconSize(16)} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Data Summary */}
         <View style={styles.dataSummary}>
           <View style={styles.summaryItem}>
@@ -1081,10 +1243,10 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
       </View>
 
       {/* Monthly Comparison Pie Chart */}
-      <MonthlyPieChart data={data} />
+      <MonthlyPieChart data={selectedBuoy === 'All Buoys' ? data : data.filter(item => item.Buoy === selectedBuoy && isValidDate(item.Date, item.Time))} />
 
       {/* Monthly Quality Comparison Bar Chart */}
-      <MonthlyBarChart data={data} selectedParam={selectedParameter} />
+      <MonthlyBarChart data={selectedBuoy === 'All Buoys' ? data : data.filter(item => item.Buoy === selectedBuoy && isValidDate(item.Date, item.Time))} selectedParam={selectedParameter} />
 
       {/* Chart Type Dropdown Modal */}
       <Modal
@@ -1208,6 +1370,71 @@ const BuoyGraph: React.FC<BuoyGraphProps> = ({ data }) => {
                     selectedParameter === option.value && styles.selectedOptionText
                 ]}>
                   {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Buoy Filter Dropdown Modal */}
+      <Modal
+        visible={showBuoyDropdown}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowBuoyDropdown(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowBuoyDropdown(false)}
+        >
+          <View style={styles.dropdownModal}>
+            <Text style={styles.modalTitle}>Select Buoy</Text>
+            <TouchableOpacity
+              style={[
+                styles.dropdownOption,
+                selectedBuoy === 'All Buoys' && styles.selectedOption
+              ]}
+              onPress={() => {
+                setSelectedBuoy('All Buoys');
+                setShowBuoyDropdown(false);
+              }}
+            >
+              <Ionicons 
+                name="layers" 
+                size={getResponsiveIconSize(20)} 
+                color={selectedBuoy === 'All Buoys' ? "#ffffff" : "#22c55e"} 
+              />
+              <Text style={[
+                styles.dropdownOptionText,
+                selectedBuoy === 'All Buoys' && styles.selectedOptionText
+              ]}>
+                All Buoys
+              </Text>
+            </TouchableOpacity>
+            {availableBuoys.map((buoy) => (
+              <TouchableOpacity
+                key={buoy}
+                style={[
+                  styles.dropdownOption,
+                  selectedBuoy === buoy && styles.selectedOption
+                ]}
+                onPress={() => {
+                  setSelectedBuoy(buoy);
+                  setShowBuoyDropdown(false);
+                }}
+              >
+                <Ionicons 
+                  name="location" 
+                  size={getResponsiveIconSize(20)} 
+                  color={selectedBuoy === buoy ? "#ffffff" : "#22c55e"} 
+                />
+                <Text style={[
+                  styles.dropdownOptionText,
+                  selectedBuoy === buoy && styles.selectedOptionText
+                ]}>
+                  {buoy}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -1413,7 +1640,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1f2937',
     textAlign: 'center',
+    marginBottom: Math.max(8, Dimensions.get('window').height * 0.01),
+  },
+  pieChartDescription: {
+    fontSize: Math.max(11, Dimensions.get('window').width * 0.028),
+    color: '#6b7280',
+    textAlign: 'center',
     marginBottom: Math.max(12, Dimensions.get('window').height * 0.015),
+    paddingHorizontal: Math.max(16, Dimensions.get('window').width * 0.04),
+    lineHeight: Math.max(16, Dimensions.get('window').width * 0.04),
   },
   pieChartContent: {
     flexDirection: 'row',
