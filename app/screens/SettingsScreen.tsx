@@ -269,14 +269,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   headerSection: {
-    marginTop: 20,
-    marginBottom: 24,
+    marginBottom: 16,
+    marginTop: 12,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: '#1e293b',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,

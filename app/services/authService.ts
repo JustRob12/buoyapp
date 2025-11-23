@@ -212,6 +212,26 @@ class AuthService {
     }
   }
 
+  // Get all approved users (role = 3)
+  async getApprovedUsers(): Promise<UserProfile[]> {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('role', 3)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Get approved users error:', error);
+      return [];
+    }
+  }
+
   // Approve user (change role from 2 to 3)
   async approveUser(userId: string): Promise<boolean> {
     try {

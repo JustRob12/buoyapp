@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   Animated,
   Dimensions,
-  ScrollView,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -130,52 +129,44 @@ const PendingApprovalScreen: React.FC = () => {
       {/* Background decoration */}
       <View style={[styles.backgroundDecoration, { right: screenWidth * 0.1 }]} />
       
-      <ScrollView 
-        contentContainerStyle={[
-          styles.scrollContent,
-          { minHeight: screenHeight - 100 }
+      <Animated.View 
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
         ]}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
       >
-        <Animated.View 
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [
-                { translateY: slideAnim },
-                { scale: scaleAnim }
-              ]
-            }
-          ]}
-        >
           {/* Main Icon with gradient background */}
           <View style={[
             styles.iconContainer,
-            { marginBottom: isVerySmallScreen ? 16 : isSmallScreen ? 24 : 32 }
+            { marginBottom: isVerySmallScreen ? 8 : isSmallScreen ? 12 : 16 }
           ]}>
             <View style={[
               styles.iconBackground,
               {
-                width: isVerySmallScreen ? 70 : isSmallScreen ? 80 : 100,
-                height: isVerySmallScreen ? 70 : isSmallScreen ? 80 : 100,
-                borderRadius: isVerySmallScreen ? 35 : isSmallScreen ? 40 : 50,
+                width: isVerySmallScreen ? 60 : isSmallScreen ? 70 : 80,
+                height: isVerySmallScreen ? 60 : isSmallScreen ? 70 : 80,
+                borderRadius: isVerySmallScreen ? 30 : isSmallScreen ? 35 : 40,
                 backgroundColor: isRejected ? '#ef4444' : '#0ea5e9',
               }
             ]}>
               <Ionicons 
                 name={isRejected ? "close-circle" : "time"} 
-                size={isVerySmallScreen ? 40 : isSmallScreen ? 48 : 64} 
+                size={isVerySmallScreen ? 32 : isSmallScreen ? 40 : 48} 
                 color="#ffffff" 
               />
             </View>
             <View style={[
               styles.iconPulse,
               {
-                width: isVerySmallScreen ? 90 : isSmallScreen ? 100 : 120,
-                height: isVerySmallScreen ? 90 : isSmallScreen ? 100 : 120,
-                borderRadius: isVerySmallScreen ? 45 : isSmallScreen ? 50 : 60,
+                width: isVerySmallScreen ? 75 : isSmallScreen ? 85 : 95,
+                height: isVerySmallScreen ? 75 : isSmallScreen ? 85 : 95,
+                borderRadius: isVerySmallScreen ? 37.5 : isSmallScreen ? 42.5 : 47.5,
                 borderColor: isRejected ? '#ef4444' : '#0ea5e9',
               }
             ]} />
@@ -185,8 +176,8 @@ const PendingApprovalScreen: React.FC = () => {
           <Text style={[
             styles.title,
             {
-              fontSize: isVerySmallScreen ? 24 : isSmallScreen ? 28 : 32,
-              marginBottom: isVerySmallScreen ? 4 : 8,
+              fontSize: isVerySmallScreen ? 20 : isSmallScreen ? 24 : 28,
+              marginBottom: isVerySmallScreen ? 2 : 4,
             }
           ]}>
             {isRejected ? 'Account Not Approved' : 'Account Under Review'}
@@ -195,8 +186,8 @@ const PendingApprovalScreen: React.FC = () => {
           <Text style={[
             styles.subtitle,
             {
-              fontSize: isVerySmallScreen ? 14 : 16,
-              marginBottom: isVerySmallScreen ? 20 : isSmallScreen ? 24 : 32,
+              fontSize: isVerySmallScreen ? 12 : 14,
+              marginBottom: isVerySmallScreen ? 12 : isSmallScreen ? 16 : 20,
             }
           ]}>
             {isRejected 
@@ -209,8 +200,9 @@ const PendingApprovalScreen: React.FC = () => {
           <View style={[
             styles.statusCard,
             {
-              padding: isVerySmallScreen ? 16 : isSmallScreen ? 20 : 24,
-              borderRadius: isVerySmallScreen ? 16 : 20,
+              padding: isVerySmallScreen ? 12 : isSmallScreen ? 16 : 20,
+              borderRadius: isVerySmallScreen ? 12 : 16,
+              maxHeight: screenHeight * 0.5,
             }
           ]}>
             <View style={styles.statusHeader}>
@@ -220,7 +212,7 @@ const PendingApprovalScreen: React.FC = () => {
               ]} />
               <Text style={[
                 styles.statusText,
-                { fontSize: isVerySmallScreen ? 16 : 18 }
+                { fontSize: isVerySmallScreen ? 14 : 16 }
               ]}>
                 {isRejected ? 'Account Rejected' : 'Pending Approval'}
               </Text>
@@ -231,8 +223,8 @@ const PendingApprovalScreen: React.FC = () => {
                 <Text style={[
                   styles.message,
                   {
-                    fontSize: isVerySmallScreen ? 14 : 15,
-                    marginBottom: isVerySmallScreen ? 16 : 24,
+                    fontSize: isVerySmallScreen ? 12 : 13,
+                    marginBottom: isVerySmallScreen ? 8 : 12,
                   }
                 ]}>
                   Unfortunately, your account was not approved. Here's the reason:
@@ -240,12 +232,12 @@ const PendingApprovalScreen: React.FC = () => {
 
                 <View style={[
                   styles.rejectionBox,
-                  { padding: isVerySmallScreen ? 12 : 16 }
+                  { padding: isVerySmallScreen ? 8 : 12 }
                 ]}>
-                  <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                  <Ionicons name="alert-circle" size={16} color="#ef4444" />
                   <Text style={[
                     styles.rejectionText,
-                    { fontSize: isVerySmallScreen ? 12 : 13 }
+                    { fontSize: isVerySmallScreen ? 11 : 12 }
                   ]}>
                     {user?.profile?.rejection_reason || 'No specific reason provided.'}
                   </Text>
@@ -254,21 +246,49 @@ const PendingApprovalScreen: React.FC = () => {
                 <View style={[
                   styles.infoBox,
                   { 
-                    padding: isVerySmallScreen ? 12 : 16,
+                    padding: isVerySmallScreen ? 8 : 12,
                     backgroundColor: '#fef2f2',
-                    borderLeftColor: '#ef4444'
+                    borderLeftColor: '#ef4444',
+                    marginBottom: 8,
                   }
                 ]}>
-                  <Ionicons name="information-circle" size={20} color="#ef4444" />
+                  <Ionicons name="information-circle" size={16} color="#ef4444" />
                   <Text style={[
                     styles.infoText,
                     { 
-                      fontSize: isVerySmallScreen ? 12 : 13,
+                      fontSize: isVerySmallScreen ? 11 : 12,
                       color: '#dc2626'
                     }
                   ]}>
                     You can try again by resubmitting your account, or delete your account if you no longer wish to continue.
                   </Text>
+                </View>
+
+                <View style={[
+                  styles.contactBox,
+                  { 
+                    padding: isVerySmallScreen ? 8 : 12, 
+                    marginTop: 0,
+                    backgroundColor: '#f0f9ff',
+                    borderLeftColor: '#0ea5e9',
+                    borderColor: '#bae6fd'
+                  }
+                ]}>
+                  <Ionicons name="mail-outline" size={16} color="#0ea5e9" />
+                  <View style={styles.contactTextContainer}>
+                    <Text style={[
+                      styles.contactText,
+                      { fontSize: isVerySmallScreen ? 11 : 12 }
+                    ]}>
+                      For questions or to request approval, please contact this email:
+                    </Text>
+                    <Text style={[
+                      styles.contactEmail,
+                      { fontSize: isVerySmallScreen ? 11 : 12 }
+                    ]}>
+                      roberto.prisoris12@gmail.com
+                    </Text>
+                  </View>
                 </View>
               </>
             ) : (
@@ -276,8 +296,8 @@ const PendingApprovalScreen: React.FC = () => {
                 <Text style={[
                   styles.message,
                   {
-                    fontSize: isVerySmallScreen ? 14 : 15,
-                    marginBottom: isVerySmallScreen ? 16 : 24,
+                    fontSize: isVerySmallScreen ? 12 : 13,
+                    marginBottom: isVerySmallScreen ? 8 : 12,
                   }
                 ]}>
                   Thank you for registering! Our administrators are currently reviewing your account. 
@@ -286,13 +306,13 @@ const PendingApprovalScreen: React.FC = () => {
 
                 <View style={[
                   styles.timelineContainer,
-                  { marginBottom: isVerySmallScreen ? 16 : 20 }
+                  { marginBottom: isVerySmallScreen ? 8 : 12 }
                 ]}>
                   <View style={styles.timelineItem}>
                     <View style={[styles.timelineDot, styles.completed]}>
-                      <Ionicons name="checkmark" size={12} color="#ffffff" />
+                      <Ionicons name="checkmark" size={10} color="#ffffff" />
                     </View>
-                    <Text style={styles.timelineText}>Account Created</Text>
+                    <Text style={[styles.timelineText, { fontSize: isVerySmallScreen ? 11 : 12 }]}>Account Created</Text>
                   </View>
                   
                   <View style={styles.timelineLine} />
@@ -301,36 +321,56 @@ const PendingApprovalScreen: React.FC = () => {
                     <View style={[styles.timelineDot, styles.current]}>
                       <View style={styles.pulsingDot} />
                     </View>
-                    <Text style={styles.timelineText}>Under Review</Text>
+                    <Text style={[styles.timelineText, { fontSize: isVerySmallScreen ? 11 : 12 }]}>Under Review</Text>
                   </View>
                   
                   <View style={styles.timelineLine} />
                   
                   <View style={styles.timelineItem}>
                     <View style={[styles.timelineDot, styles.pending]}>
-                      <Ionicons name="shield-checkmark" size={12} color="#94a3b8" />
+                      <Ionicons name="shield-checkmark" size={10} color="#94a3b8" />
                     </View>
-                    <Text style={[styles.timelineText, styles.pendingText]}>Access Granted</Text>
+                    <Text style={[styles.timelineText, styles.pendingText, { fontSize: isVerySmallScreen ? 11 : 12 }]}>Access Granted</Text>
                   </View>
                 </View>
 
                 <View style={[
                   styles.infoBox,
-                  { padding: isVerySmallScreen ? 12 : 16 }
+                  { padding: isVerySmallScreen ? 8 : 12, marginBottom: 8 }
                 ]}>
-                  <Ionicons name="information-circle" size={20} color="#0ea5e9" />
+                  <Ionicons name="information-circle" size={16} color="#0ea5e9" />
                   <Text style={[
                     styles.infoText,
-                    { fontSize: isVerySmallScreen ? 12 : 13 }
+                    { fontSize: isVerySmallScreen ? 11 : 12 }
                   ]}>
                     Approval typically takes 24-48 hours. You'll receive an email notification once approved.
                   </Text>
+                </View>
+
+                <View style={[
+                  styles.contactBox,
+                  { padding: isVerySmallScreen ? 8 : 12, marginTop: 0 }
+                ]}>
+                  <Ionicons name="mail-outline" size={16} color="#0ea5e9" />
+                  <View style={styles.contactTextContainer}>
+                    <Text style={[
+                      styles.contactText,
+                      { fontSize: isVerySmallScreen ? 11 : 12 }
+                    ]}>
+                      For expedited approval or inquiries, please contact this email:
+                    </Text>
+                    <Text style={[
+                      styles.contactEmail,
+                      { fontSize: isVerySmallScreen ? 11 : 12 }
+                    ]}>
+                      roberto.prisoris12@gmail.com
+                    </Text>
+                  </View>
                 </View>
               </>
             )}
           </View>
         </Animated.View>
-      </ScrollView>
 
       {/* Action Buttons - Fixed at bottom */}
       <Animated.View 
@@ -382,14 +422,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0f2fe',
     opacity: 0.3,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-  },
-  content: {
-    alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
   },
   bottomContainer: {
     paddingHorizontal: 20,
@@ -433,23 +471,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   statusCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   statusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   statusIndicator: {
     width: 12,
@@ -485,12 +513,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   timelineDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   completed: {
     backgroundColor: '#10b981',
@@ -503,20 +531,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
   },
   pulsingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#ffffff',
   },
   timelineLine: {
     width: 2,
-    height: 16,
+    height: 12,
     backgroundColor: '#e2e8f0',
-    marginLeft: 11,
-    marginVertical: 4,
+    marginLeft: 9,
+    marginVertical: 2,
   },
   timelineText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#374151',
   },
@@ -527,18 +555,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#eff6ff',
-    padding: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     borderLeftWidth: 4,
     borderLeftColor: '#0ea5e9',
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: '#1e40af',
-    lineHeight: 18,
-    marginLeft: 12,
+    lineHeight: 16,
+    marginLeft: 10,
     fontWeight: '500',
+  },
+  contactBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f0f9ff',
+    padding: 12,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0ea5e9',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+  },
+  contactTextContainer: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  contactText: {
+    fontSize: 12,
+    color: '#1e40af',
+    lineHeight: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  contactEmail: {
+    fontSize: 12,
+    color: '#0ea5e9',
+    lineHeight: 16,
+    fontWeight: '600',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -569,18 +625,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#fef2f2',
-    padding: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     borderLeftWidth: 4,
     borderLeftColor: '#ef4444',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   rejectionText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: '#dc2626',
-    lineHeight: 18,
-    marginLeft: 12,
+    lineHeight: 16,
+    marginLeft: 10,
     fontWeight: '500',
   },
   actionButtonsContainer: {

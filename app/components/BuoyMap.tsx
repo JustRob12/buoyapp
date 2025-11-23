@@ -166,9 +166,31 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData, latestLocation }) => 
                 const color = getBuoyColor(coord.buoy);
                 const icon = createMarkerIcon(color, isLatest);
 
+                // Format date and time
+                let dateTimeText = '';
+                if (coord.date && coord.time) {
+                    try {
+                        const dateObj = new Date(coord.date + ' ' + coord.time);
+                        const formattedDate = dateObj.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        });
+                        const formattedTime = dateObj.toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                        });
+                        dateTimeText = '<br>Date: ' + formattedDate + '<br>Time: ' + formattedTime;
+                    } catch (e) {
+                        // Fallback to raw date/time if formatting fails
+                        dateTimeText = '<br>Date: ' + coord.date + '<br>Time: ' + coord.time;
+                    }
+                }
+
                 const marker = L.marker([coord.latitude, coord.longitude], { icon })
                     .addTo(map)
-                    .bindPopup('<strong>' + coord.buoy + '</strong><br>pH: ' + coord.pH + '<br>Temp: ' + coord.temperature + '°C<br>TDS: ' + coord.tds + ' ppm');
+                    .bindPopup('<strong>' + coord.buoy + '</strong>' + dateTimeText + '<br>pH: ' + coord.pH + '<br>Temp: ' + coord.temperature + '°C<br>TDS: ' + coord.tds + ' ppm');
 
                 markers.push(marker);
             });

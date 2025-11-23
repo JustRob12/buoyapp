@@ -22,15 +22,19 @@ interface ManageAccountsScreenProps {
 
 const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) => {
   const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
+  const [approvedUsers, setApprovedUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
   const [rejectionModalVisible, setRejectionModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [viewMode, setViewMode] = useState<'pending' | 'approved'>('pending');
 
   useEffect(() => {
     loadPendingUsers();
+    loadApprovedUsers();
   }, []);
 
   const loadPendingUsers = async () => {
@@ -46,9 +50,24 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
     }
   };
 
-  const handleRefresh = () => {
+  const loadApprovedUsers = async () => {
+    try {
+      const users = await authService.getApprovedUsers();
+      setApprovedUsers(users);
+    } catch (error) {
+      console.error('Error loading approved users:', error);
+      Alert.alert('Error', 'Failed to load approved users');
+    }
+  };
+
+  const handleRefresh = async () => {
     setRefreshing(true);
-    loadPendingUsers();
+    if (viewMode === 'pending') {
+      await loadPendingUsers();
+    } else {
+      await loadApprovedUsers();
+      setRefreshing(false);
+    }
   };
 
   const handleApproveUser = async (user: UserProfile) => {
@@ -66,8 +85,9 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
               const success = await authService.approveUser(user.id);
               if (success) {
                 Alert.alert('Success', `${user.fullname} has been approved!`);
-                // Refresh the pending users list to get updated data from database
+                // Refresh both lists to get updated data from database
                 await loadPendingUsers();
+                await loadApprovedUsers();
               } else {
                 Alert.alert('Error', 'Failed to approve user');
               }
@@ -123,6 +143,42 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
     setRejectionReason('');
   };
 
+  const handleDeleteUser = (user: UserProfile) => {
+    setSelectedUser(user);
+    setDeleteModalVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedUser) {
+      return;
+    }
+
+    setProcessingUserId(selectedUser.id);
+    setDeleteModalVisible(false);
+    
+    try {
+      const success = await authService.deleteUserAccount(selectedUser.id);
+      if (success) {
+        Alert.alert('User Deleted', `${selectedUser.fullname}'s account has been permanently deleted.`);
+        // Refresh the approved users list
+        await loadApprovedUsers();
+      } else {
+        Alert.alert('Error', 'Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      Alert.alert('Error', 'Failed to delete user');
+    } finally {
+      setProcessingUserId(null);
+      setSelectedUser(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteModalVisible(false);
+    setSelectedUser(null);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -142,7 +198,7 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
       .substring(0, 2);
   };
 
-  const renderUserItem = ({ item: user }: { item: UserProfile }) => {
+  const renderPendingUserItem = ({ item: user }: { item: UserProfile }) => {
     const isProcessing = processingUserId === user.id;
 
     return (
@@ -191,6 +247,46 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
     );
   };
 
+  const renderApprovedUserItem = ({ item: user }: { item: UserProfile }) => {
+    const isProcessing = processingUserId === user.id;
+
+    return (
+      <View style={styles.userCard}>
+        <View style={styles.userInfo}>
+          <View style={styles.avatar}>
+            {user.profile_picture ? (
+              <Image source={{ uri: user.profile_picture }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{getInitials(user.fullname)}</Text>
+            )}
+          </View>
+          <View style={styles.userDetails}>
+            <Text style={styles.userName}>{user.fullname}</Text>
+            <Text style={styles.userEmail}>{user.username}</Text>
+            <Text style={styles.userDate}>Approved: {formatDate(user.updated_at)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDeleteUser(user)}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={18} color="#ffffff" />
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -220,32 +316,85 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
       </View>
 
       <View style={styles.content}>
+        {/* Toggle Buttons */}
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity
+            style={[styles.toggleButton, viewMode === 'pending' && styles.toggleButtonActive]}
+            onPress={() => setViewMode('pending')}
+          >
+            <Text style={[styles.toggleButtonText, viewMode === 'pending' && styles.toggleButtonTextActive]}>
+              Pending Users
+            </Text>
+            {viewMode === 'pending' && pendingUsers.length > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{pendingUsers.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.toggleButton, viewMode === 'approved' && styles.toggleButtonActive]}
+            onPress={() => setViewMode('approved')}
+          >
+            <Text style={[styles.toggleButtonText, viewMode === 'approved' && styles.toggleButtonTextActive]}>
+              Approved Users
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{pendingUsers.length}</Text>
-            <Text style={styles.statLabel}>Pending Approvals</Text>
+            <Text style={styles.statNumber}>
+              {viewMode === 'pending' ? pendingUsers.length : approvedUsers.length}
+            </Text>
+            <Text style={styles.statLabel}>
+              {viewMode === 'pending' ? 'Pending Approvals' : 'Approved Users'}
+            </Text>
           </View>
         </View>
 
-        {pendingUsers.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={80} color="#0ea5e9" />
-            <Text style={styles.emptyTitle}>All Caught Up!</Text>
-            <Text style={styles.emptyMessage}>
-              There are no pending user registrations at the moment.
-            </Text>
-          </View>
+        {viewMode === 'pending' ? (
+          pendingUsers.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="checkmark-circle-outline" size={80} color="#0ea5e9" />
+              <Text style={styles.emptyTitle}>All Caught Up!</Text>
+              <Text style={styles.emptyMessage}>
+                There are no pending user registrations at the moment.
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={pendingUsers}
+              keyExtractor={(item) => item.id}
+              renderItem={renderPendingUserItem}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+              }
+              contentContainerStyle={styles.listContainer}
+            />
+          )
         ) : (
-          <FlatList
-            data={pendingUsers}
-            keyExtractor={(item) => item.id}
-            renderItem={renderUserItem}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-            }
-            contentContainerStyle={styles.listContainer}
-          />
+          approvedUsers.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={80} color="#0ea5e9" />
+              <Text style={styles.emptyTitle}>No Approved Users</Text>
+              <Text style={styles.emptyMessage}>
+                There are no approved users at the moment.
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={approvedUsers}
+              keyExtractor={(item) => item.id}
+              renderItem={renderApprovedUserItem}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+              }
+              contentContainerStyle={styles.listContainer}
+            />
+          )
         )}
       </View>
 
@@ -297,6 +446,42 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
           </View>
         </View>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons name="warning" size={48} color="#ef4444" style={styles.warningIcon} />
+            <Text style={styles.modalTitle}>Delete User Account</Text>
+            <Text style={styles.modalSubtitle}>
+              Are you sure you want to permanently delete {selectedUser?.fullname}'s account? This action cannot be undone.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelDelete}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteConfirmButton]}
+                onPress={handleConfirmDelete}
+              >
+                <Text style={styles.deleteConfirmButtonText}>
+                  Delete Account
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -330,6 +515,57 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    marginTop: 16,
+    marginBottom: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 4,
+  },
+  toggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    gap: 8,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  toggleButtonTextActive: {
+    color: '#0ea5e9',
+  },
+  badge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
@@ -463,6 +699,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+  },
+  deleteButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -490,6 +734,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  warningIcon: {
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   reasonInput: {
     borderWidth: 1,
@@ -527,6 +775,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#0ea5e9',
   },
   confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  deleteConfirmButton: {
+    backgroundColor: '#ef4444',
+  },
+  deleteConfirmButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',

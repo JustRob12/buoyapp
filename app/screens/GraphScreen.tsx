@@ -1358,13 +1358,7 @@ const GraphScreen = () => {
         }
       >
         <View style={styles.content}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#0ea5e9" />
-            </TouchableOpacity>
+          <View style={styles.headerSection}>
             <View style={styles.titleContainer}>
               <Text style={styles.title}>Buoy Data Graphs</Text>
               <Text style={styles.subtitle}>Choose chart type and scroll horizontally to see more data</Text>
@@ -1482,6 +1476,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   headerRow: {
     flexDirection: 'row',
@@ -1489,30 +1484,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  backButton: {
-    padding: 8,
-    marginRight: 12,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  headerSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 12,
   },
   titleContainer: {
     flex: 1,
+    alignItems: 'flex-start',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
-    marginBottom: 8,
-    textAlign: 'center',
-    marginTop: 20,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 4,
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 14,
     color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 20,
+    textAlign: 'left',
+    fontWeight: '500',
   },
   refreshButton: {
     padding: 8,

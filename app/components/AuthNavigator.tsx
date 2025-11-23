@@ -54,11 +54,13 @@ const AuthNavigator: React.FC<AuthNavigatorProps> = ({ onAuthSuccess }) => {
         <LoginScreen
           onLoginSuccess={handleLoginSuccess}
           onNavigateToRegister={navigateToRegister}
+          onNavigateToHome={navigateToHome}
         />
       ) : (
         <RegisterScreen
           onRegisterSuccess={handleRegisterSuccess}
           onNavigateToLogin={navigateToLogin}
+          onNavigateToHome={navigateToHome}
         />
       )}
     </View>

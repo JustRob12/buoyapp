@@ -140,6 +140,14 @@ const DataTable: React.FC<DataTableProps> = ({
       clearFilters();
     }
   }, [clearFiltersTrigger]);
+  // Format TDS to remove .00 if it's a whole number
+  const formatTDS = (tds: string | number) => {
+    const tdsValue = typeof tds === 'string' ? parseFloat(tds) : tds;
+    if (isNaN(tdsValue)) return tds;
+    // Remove .00 if it's a whole number
+    return tdsValue % 1 === 0 ? tdsValue.toString() : tdsValue.toFixed(2);
+  };
+
   const formatDateTime = (date: string, time: string) => {
     try {
       const dateStr = date.trim();
@@ -303,7 +311,7 @@ const DataTable: React.FC<DataTableProps> = ({
           <Text style={[styles.cellText, { fontSize: getResponsiveFontSize(10) }]}>{item['Temp (°C)']}</Text>
         </View>
         <View style={[styles.cell, styles.tdsCell]}>
-          <Text style={[styles.cellText, { fontSize: getResponsiveFontSize(10) }]}>{item['TDS (ppm)']}</Text>
+          <Text style={[styles.cellText, { fontSize: getResponsiveFontSize(10) }]}>{formatTDS(item['TDS (ppm)'])}</Text>
         </View>
       </View>
     );

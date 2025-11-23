@@ -58,7 +58,7 @@ const MapScreen = () => {
     <View style={styles.container}>
       <Header title="AquaNet" />
       <View style={styles.content}>
-        <View style={styles.headerRow}>
+        <View style={styles.headerSection}>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Buoy Locations</Text>
             <Text style={styles.subtitle}>Real-time sensor network map</Text>
@@ -103,30 +103,31 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  headerRow: {
+  headerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    marginTop: 12,
   },
   titleContainer: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
-    marginBottom: 8,
-    textAlign: 'center',
-    marginTop: 20,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 4,
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 20,
+    textAlign: 'left',
   },
   refreshButton: {
     padding: 8,
