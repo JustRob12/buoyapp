@@ -22,6 +22,7 @@ const ProfileScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [imageVersion, setImageVersion] = useState(0); // Track image updates
   const [formData, setFormData] = useState({
     fullname: user?.profile?.fullname || '',
     username: user?.profile?.username || '',
@@ -35,8 +36,12 @@ const ProfileScreen: React.FC = () => {
         fullname: user.profile.fullname,
         username: user.profile.username,
       });
+      // Increment image version when profile picture changes
+      if (user.profile.profile_picture) {
+        setImageVersion(prev => prev + 1);
+      }
     }
-  }, [user?.profile]);
+  }, [user?.profile?.profile_picture]);
 
   const handleImagePicker = () => {
     Alert.alert(
@@ -89,14 +94,30 @@ const ProfileScreen: React.FC = () => {
         profile_picture: response.secure_url,
       });
 
-      // Refresh user profile
+      // Refresh user profile and wait for it to complete
       await refreshUserProfile();
+      
+      // Force image version update to trigger re-render
+      setImageVersion(prev => prev + 1);
+      
+      // Force a small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       Alert.alert('Success', 'Profile picture updated successfully!');
     } catch (error: any) {
       console.error('Error uploading profile picture:', error);
       Alert.alert('Error', 'Failed to upload profile picture');
     }
+  };
+
+  // Helper function to add cache-busting to image URL
+  const getImageUrl = (url?: string) => {
+    if (!url) return undefined;
+    // Add version number and timestamp to bypass cache
+    // Also add Cloudinary transformation to force new URL
+    const separator = url.includes('?') ? '&' : '?';
+    const timestamp = Date.now();
+    return `${url}${separator}v=${imageVersion}&t=${timestamp}&_=${timestamp}`;
   };
 
   const handleSaveProfile = async () => {
@@ -150,8 +171,18 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.profilePictureContainer}>
             {user?.profile?.profile_picture ? (
               <Image
-                source={{ uri: user.profile.profile_picture }}
+                key={`${user.profile.profile_picture}-${imageVersion}`} // Force re-render when URL or version changes
+                source={{ 
+                  uri: getImageUrl(user.profile.profile_picture),
+                  cache: 'reload' // Force reload from network
+                }}
                 style={styles.profilePicture}
+                onError={(error) => {
+                  console.error('Image load error:', error);
+                }}
+                onLoad={() => {
+                  console.log('Image loaded successfully');
+                }}
               />
             ) : (
               <View style={styles.defaultProfilePicture}>

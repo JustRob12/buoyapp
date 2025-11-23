@@ -96,7 +96,8 @@ class CloudinaryService {
       formData.append('file', fileInfo);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
       formData.append('folder', 'profile_pictures'); // Organize uploads in folder
-      formData.append('public_id', `profile_${userId}`); // Unique ID for user profile
+      // Add timestamp to public_id to ensure unique URL (forces cache refresh)
+      formData.append('public_id', `profile_${userId}_${Date.now()}`); // Unique ID with timestamp
 
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,

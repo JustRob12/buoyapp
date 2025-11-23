@@ -198,6 +198,14 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
       .substring(0, 2);
   };
 
+  // Helper function to add cache-busting to image URL
+  const getImageUrl = (url?: string) => {
+    if (!url) return undefined;
+    // Add timestamp to bypass cache
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}t=${Date.now()}`;
+  };
+
   const renderPendingUserItem = ({ item: user }: { item: UserProfile }) => {
     const isProcessing = processingUserId === user.id;
 
@@ -206,7 +214,17 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
         <View style={styles.userInfo}>
           <View style={styles.avatar}>
             {user.profile_picture ? (
-              <Image source={{ uri: user.profile_picture }} style={styles.avatarImage} />
+              <Image 
+                key={user.profile_picture} // Force re-render when URL changes
+                source={{ 
+                  uri: getImageUrl(user.profile_picture),
+                  cache: 'reload' // Force reload from network
+                }} 
+                style={styles.avatarImage}
+                onError={(error) => {
+                  console.error('Image load error:', error);
+                }}
+              />
             ) : (
               <Text style={styles.avatarText}>{getInitials(user.fullname)}</Text>
             )}
@@ -255,7 +273,17 @@ const ManageAccountsScreen: React.FC<ManageAccountsScreenProps> = ({ onClose }) 
         <View style={styles.userInfo}>
           <View style={styles.avatar}>
             {user.profile_picture ? (
-              <Image source={{ uri: user.profile_picture }} style={styles.avatarImage} />
+              <Image 
+                key={user.profile_picture} // Force re-render when URL changes
+                source={{ 
+                  uri: getImageUrl(user.profile_picture),
+                  cache: 'reload' // Force reload from network
+                }} 
+                style={styles.avatarImage}
+                onError={(error) => {
+                  console.error('Image load error:', error);
+                }}
+              />
             ) : (
               <Text style={styles.avatarText}>{getInitials(user.fullname)}</Text>
             )}

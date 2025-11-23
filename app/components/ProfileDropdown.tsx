@@ -127,6 +127,14 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
       .substring(0, 2);
   };
 
+  // Helper function to add cache-busting to image URL
+  const getImageUrl = (url?: string) => {
+    if (!url) return undefined;
+    // Add timestamp to bypass cache
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}t=${Date.now()}`;
+  };
+
   return (
     <>
       <TouchableOpacity
@@ -137,8 +145,15 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
         <View style={styles.profileImageContainer}>
           {user?.profile?.profile_picture ? (
             <Image
-              source={{ uri: user.profile.profile_picture }}
+              key={user.profile.profile_picture} // Force re-render when URL changes
+              source={{ 
+                uri: getImageUrl(user.profile.profile_picture),
+                cache: 'reload' // Force reload from network
+              }}
               style={styles.profileImage}
+              onError={(error) => {
+                console.error('Image load error:', error);
+              }}
             />
           ) : (
             <View style={styles.defaultProfile}>
@@ -184,8 +199,15 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
             <View style={styles.userInfo}>
               {user?.profile?.profile_picture ? (
                 <Image
-                  source={{ uri: user.profile.profile_picture }}
+                  key={user.profile.profile_picture} // Force re-render when URL changes
+                  source={{ 
+                    uri: getImageUrl(user.profile.profile_picture),
+                    cache: 'reload' // Force reload from network
+                  }}
                   style={styles.dropdownProfileImage}
+                  onError={(error) => {
+                    console.error('Image load error:', error);
+                  }}
                 />
               ) : (
                 <View style={styles.dropdownDefaultProfile}>
