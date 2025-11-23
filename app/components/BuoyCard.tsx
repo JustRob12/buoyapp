@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { BuoyData } from '../services/buoyService';
 import BuoyEchoAnimation from './BuoyEchoAnimation';
 
@@ -10,6 +10,7 @@ interface BuoyCardProps {
 
 const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
   const [isScreenFocused, setIsScreenFocused] = useState(true);
+  const navigation = useNavigation();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -19,6 +20,17 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
       };
     }, [])
   );
+
+  const handleBuoyImagePress = () => {
+    // Navigate to Map tab and pass the latest location data
+    navigation.navigate('Map' as never, { 
+      latestLocation: {
+        latitude: parseFloat(data.Latitude) || 0,
+        longitude: parseFloat(data.Longitude) || 0,
+        buoy: data.Buoy,
+      }
+    } as never);
+  };
 
   const formatDateTime = (date: string, time: string) => {
     const dateObj = new Date(`${date} ${time}`);
@@ -58,6 +70,21 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
 
   const { date, time } = formatDateTime(data.Date, data.Time);
 
+  // Format TDS to remove .00
+  const formatTDS = (tds: string | number) => {
+    const tdsValue = typeof tds === 'string' ? parseFloat(tds) : tds;
+    if (isNaN(tdsValue)) return tds;
+    // Remove .00 if it's a whole number
+    return tdsValue % 1 === 0 ? tdsValue.toString() : tdsValue.toFixed(2);
+  };
+
+  // Format pH and Temperature to 2 decimal places
+  const formatValue = (value: string | number, decimals: number = 2) => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numValue)) return value;
+    return numValue.toFixed(decimals);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header Section */}
@@ -75,9 +102,13 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
       {/* Main Buoy Section */}
       <View style={styles.buoySection}>
         <View style={styles.buoyContainer}>
-          <View style={styles.buoyImageContainer}>
+          <TouchableOpacity 
+            style={styles.buoyImageContainer}
+            onPress={handleBuoyImagePress}
+            activeOpacity={0.8}
+          >
             <BuoyEchoAnimation 
-              size={120}
+              size={100}
               color="#0ea5e9"
               duration={2000}
               delay={0}
@@ -88,60 +119,51 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
               style={styles.buoyImage}
               resizeMode="contain"
             />
-          </View>
+          </TouchableOpacity>
           <Text style={styles.buoyLabel}>{data.Buoy}</Text>
           <Text style={styles.buoySubtitle}>Active Sensor</Text>
+          {/* Location below image */}
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationText}>
+              {data.Latitude}, {data.Longitude}
+            </Text>
+          </View>
         </View>
       </View>
 
       {/* Sensor Data Grid */}
       <View style={styles.sensorGrid}>
         <View style={styles.sensorCard}>
-          <View style={styles.sensorHeader}>
+          <View style={[styles.sensorIconContainer, { backgroundColor: '#f0f9ff' }]}>
             <View style={[styles.sensorIcon, { backgroundColor: '#0ea5e9' }]}>
               <Text style={styles.sensorIconText}>pH</Text>
             </View>
-            <Text style={styles.sensorLabel}>pH Level</Text>
           </View>
-          <Text style={styles.sensorValue}>{data.pH}</Text>
+          <Text style={styles.sensorValue}>{formatValue(data.pH)}</Text>
+          <Text style={styles.sensorLabel}>pH Level</Text>
           <Text style={styles.sensorUnit}>pH Scale</Text>
         </View>
 
         <View style={styles.sensorCard}>
-          <View style={styles.sensorHeader}>
+          <View style={[styles.sensorIconContainer, { backgroundColor: '#fef2f2' }]}>
             <View style={[styles.sensorIcon, { backgroundColor: '#ef4444' }]}>
               <Text style={styles.sensorIconText}>°C</Text>
             </View>
-            <Text style={styles.sensorLabel}>Temperature</Text>
           </View>
-          <Text style={styles.sensorValue}>{data['Temp (°C)']}</Text>
+          <Text style={styles.sensorValue}>{formatValue(data['Temp (°C)'])}</Text>
+          <Text style={styles.sensorLabel}>Temperature</Text>
           <Text style={styles.sensorUnit}>Celsius</Text>
         </View>
 
         <View style={styles.sensorCard}>
-          <View style={styles.sensorHeader}>
+          <View style={[styles.sensorIconContainer, { backgroundColor: '#f0fdf4' }]}>
             <View style={[styles.sensorIcon, { backgroundColor: '#22c55e' }]}>
               <Text style={styles.sensorIconText}>TDS</Text>
             </View>
-            <Text style={styles.sensorLabel}>TDS</Text>
           </View>
-          <Text style={styles.sensorValue}>{data['TDS (ppm)']}</Text>
+          <Text style={styles.sensorValue}>{formatTDS(data['TDS (ppm)'])}</Text>
+          <Text style={styles.sensorLabel}>TDS</Text>
           <Text style={styles.sensorUnit}>ppm</Text>
-        </View>
-      </View>
-
-      {/* Location Info */}
-      <View style={styles.locationSection}>
-        <Text style={styles.locationTitle}>Location</Text>
-        <View style={styles.locationData}>
-          <View style={styles.locationItem}>
-            <Text style={styles.locationLabel}>Latitude</Text>
-            <Text style={styles.locationValue}>{data.Latitude}</Text>
-          </View>
-          <View style={styles.locationItem}>
-            <Text style={styles.locationLabel}>Longitude</Text>
-            <Text style={styles.locationValue}>{data.Longitude}</Text>
-          </View>
         </View>
       </View>
     </View>
@@ -150,13 +172,13 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
   },
   headerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   statusIndicator: {
     flexDirection: 'row',
@@ -194,19 +216,19 @@ const styles = StyleSheet.create({
   },
   buoySection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 20,
   },
   buoyContainer: {
     alignItems: 'center',
   },
   buoyImageContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#f0f9ff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#0ea5e9',
     shadowOffset: {
       width: 0,
@@ -217,94 +239,84 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buoyImage: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
   },
   buoyLabel: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800',
     color: '#1e293b',
     marginBottom: 4,
   },
   buoySubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#64748b',
+    marginBottom: 8,
+  },
+  locationInfo: {
+    marginTop: 4,
+  },
+  locationText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#94a3b8',
+    textAlign: 'center',
   },
   sensorGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 16,
+    gap: 8,
   },
   sensorCard: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: 4,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  sensorHeader: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sensorIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  sensorIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  sensorIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sensorIconText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#ffffff',
   },
-  sensorLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
-    textAlign: 'center',
-  },
   sensorValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     color: '#1e293b',
     marginBottom: 4,
     textAlign: 'center',
   },
-  sensorUnit: {
+  sensorLabel: {
     fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  sensorUnit: {
+    fontSize: 10,
     fontWeight: '500',
     color: '#94a3b8',
     textAlign: 'center',
-  },
-  locationSection: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 20,
-  },
-  locationTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 16,
-  },
-  locationData: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  locationItem: {
-    flex: 1,
-  },
-  locationLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  locationValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1e293b',
   },
 });
 

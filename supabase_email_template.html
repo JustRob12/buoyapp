@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Your Email - AquaNet</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
+            line-height: 1.6;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .email-header {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .email-header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .email-body {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #1e293b;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .message {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+        .button-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+        .confirm-button {
+            display: inline-block;
+            background-color: #0ea5e9;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        .confirm-button:hover {
+            background-color: #0284c7;
+        }
+        .username-display {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 16px 20px;
+            margin: 30px 0;
+            border-radius: 8px;
+        }
+        .username-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .username-value {
+            font-size: 18px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+        .alternative-link {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .alternative-link-text {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }
+        .link-url {
+            font-size: 12px;
+            color: #0ea5e9;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        .email-footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer-text {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+        .footer-link {
+            color: #0ea5e9;
+            text-decoration: none;
+        }
+        .icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background-color: #f0f9ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+        @media only screen and (max-width: 600px) {
+            .email-body {
+                padding: 30px 20px;
+            }
+            .email-header {
+                padding: 30px 20px;
+            }
+            .email-header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <h1>AquaNet</h1>
+            <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px;">Marine Monitoring System</p>
+        </div>
+
+        <!-- Body -->
+        <div class="email-body">
+            <div class="icon">🌊</div>
+            
+            <div class="greeting">
+                Hello {{ .FullName }}!
+            </div>
+
+            <div class="message">
+                Thank you for registering with AquaNet. To complete your registration and activate your account, please confirm your email address by clicking the button below.
+            </div>
+
+            <!-- Username Display -->
+            <div class="username-display">
+                <div class="username-label">Your Username</div>
+                <div class="username-value">{{ .Email }}</div>
+            </div>
+
+            <!-- Confirm Button -->
+            <div class="button-container">
+                <a href="{{ .ConfirmationURL }}" class="confirm-button">
+                    Confirm Email Address
+                </a>
+            </div>
+
+            <!-- Alternative Link -->
+            <div class="alternative-link">
+                <div class="alternative-link-text">
+                    If the button doesn't work, copy and paste this link into your browser:
+                </div>
+                <div class="link-url">{{ .ConfirmationURL }}</div>
+            </div>
+
+            <div class="message" style="margin-top: 30px; font-size: 14px; color: #94a3b8;">
+                This confirmation link will expire in 24 hours. If you didn't create an account with AquaNet, please ignore this email.
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="email-footer">
+            <div class="footer-text">
+                © 2025 AquaNet. All rights reserved.
+            </div>
+            <div class="footer-text">
+                <a href="#" class="footer-link">Privacy Policy</a> | 
+                <a href="#" class="footer-link">Terms of Service</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

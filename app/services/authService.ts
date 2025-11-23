@@ -57,7 +57,7 @@ class AuthService {
         throw new Error('An account with this email already exists');
       }
 
-      // Sign up the user (without email confirmation)
+      // Sign up the user (with email confirmation)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -67,7 +67,7 @@ class AuthService {
             username,
             role,
           },
-          emailRedirectTo: undefined, // Disable email confirmation
+          emailRedirectTo: 'https://cizcaodtissblzhsmosy.supabase.co/auth/v1/callback',
         },
       });
 
@@ -294,6 +294,119 @@ class AuthService {
     } catch (error) {
       console.error('Reset rejection status error:', error);
       return false;
+    }
+  }
+
+  // Google OAuth sign-in
+  async signInWithGoogle() {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'com.Scheme.app://',
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
+  }
+
+  // Create or update user profile after OAuth (called after successful Google auth)
+  async createOrUpdateUserProfileFromOAuth(userId: string, email: string, fullname?: string) {
+    try {
+      // Wait a bit for the trigger to create the profile (if it hasn't already)
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Check if profile already exists (might be created by trigger)
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (existingProfile) {
+        // Update existing profile with OAuth data
+        const updates: any = {};
+        
+        // Always update fullname if it's empty, or if we have a better name from Google
+        const currentFullname = existingProfile.fullname || '';
+        const isEmptyOrDefault = !currentFullname || currentFullname.trim() === '' || currentFullname === email.split('@')[0];
+        
+        if (fullname && (isEmptyOrDefault || fullname !== currentFullname)) {
+          updates.fullname = fullname;
+        }
+        
+        // Always update username if it's empty or doesn't match email
+        const currentUsername = existingProfile.username || '';
+        if (email && (!currentUsername || currentUsername.trim() === '' || currentUsername !== email)) {
+          updates.username = email;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          console.log('Updating user profile with:', updates);
+          console.log('Current profile:', { fullname: currentFullname, username: currentUsername });
+          
+          const { data: updatedProfile, error: updateError } = await supabase
+            .from('user_profiles')
+            .update(updates)
+            .eq('id', userId)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Failed to update OAuth profile:', updateError);
+            console.error('Update error details:', JSON.stringify(updateError, null, 2));
+            // Try to return existing profile even if update failed
+            return existingProfile;
+          }
+
+          console.log('Successfully updated user profile:', updatedProfile);
+          return updatedProfile;
+        }
+
+        console.log('No updates needed for user profile');
+        return existingProfile;
+      }
+
+      // If profile doesn't exist, create it manually
+      // (This shouldn't happen if trigger is working, but just in case)
+      const { data: newProfile, error: insertError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          username: email,
+          fullname: fullname || email.split('@')[0],
+          role: 2, // Default to pending
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        // If insert fails, it might be a race condition with the trigger
+        // Try fetching again
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (profile) {
+          return profile;
+        }
+        throw insertError;
+      }
+
+      return newProfile;
+    } catch (error) {
+      console.error('Create/update user profile from OAuth error:', error);
+      throw error;
     }
   }
 

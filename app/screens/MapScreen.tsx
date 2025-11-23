@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRoute } from '@react-navigation/native';
 import Header from '../components/Header';
 import BuoyMap from '../components/BuoyMap';
 import { getLatestBuoyDataForGraph, BuoyData } from '../services/buoyService';
 
 const MapScreen = () => {
+  const route = useRoute();
+  // Get latestLocation from route params if provided
+  const latestLocation = (route.params as any)?.latestLocation as {
+    latitude: number;
+    longitude: number;
+    buoy: string;
+  } | undefined;
   const [mapData, setMapData] = useState<BuoyData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Key to force map refresh
 
   const fetchMapData = async () => {
     try {
       setError(null);
       const data = await getLatestBuoyDataForGraph(20);
       setMapData(data);
+      // Increment refresh key to trigger map update
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       setError('Failed to fetch map data. Please try again.');
       console.error('Error fetching map data:', err);
@@ -28,11 +39,20 @@ const MapScreen = () => {
     setRefreshing(true);
     await fetchMapData();
     setRefreshing(false);
+    // Reset refresh key to force map update
+    setRefreshKey(prev => prev + 1);
   };
 
+  // Track if data has been loaded
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  // Fetch data on mount only
   useEffect(() => {
-    fetchMapData();
-  }, []);
+    if (!hasLoaded) {
+      fetchMapData();
+      setHasLoaded(true);
+    }
+  }, [hasLoaded]);
 
   return (
     <View style={styles.container}>
@@ -67,7 +87,7 @@ const MapScreen = () => {
           </View>
         ) : (
           <View style={styles.mapContainer}>
-            <BuoyMap data={mapData} />
+            <BuoyMap key={refreshKey} data={mapData} latestLocation={latestLocation} />
           </View>
         )}
       </View>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import BuoyCard from '../components/BuoyCard';
@@ -18,7 +18,6 @@ const DashboardScreen = () => {
   const [availableBuoyNumbers, setAvailableBuoyNumbers] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [buoyLoading, setBuoyLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   // Cache for buoy data to avoid redundant API calls
@@ -209,9 +208,7 @@ const DashboardScreen = () => {
   };
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchLatestData(false, true); // Force refresh on pull-to-refresh
-    setRefreshing(false);
+    await fetchLatestData(false, true); // Force refresh
   };
 
   const onRefreshButtonPress = async () => {
@@ -253,15 +250,7 @@ const DashboardScreen = () => {
   return (
     <View style={styles.container}>
       <Header title="AquaNet" />
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
+      <View style={styles.content}>
           {/* Header Section */}
           <View style={styles.headerSection}>
             <View style={styles.titleContainer}>
@@ -348,8 +337,7 @@ const DashboardScreen = () => {
               </View>
             </View>
           )}
-        </View>
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -359,34 +347,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
   content: {
     flex: 1,
     paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   headerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
-    marginTop: 20,
+    marginBottom: 16,
+    marginTop: 12,
   },
   titleContainer: {
     flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: '#1e293b',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#64748b',
   },
@@ -413,19 +396,19 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   buoySelectionSection: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   buoySelectionLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 12,
+    marginBottom: 8,
   },
 
   refreshButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',

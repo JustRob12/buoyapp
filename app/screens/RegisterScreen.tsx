@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '../services/authService';
@@ -30,6 +31,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const { width: screenWidth } = Dimensions.get('window');
 
@@ -116,15 +118,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
         role: 2, // Default to pending
       });
 
-      Alert.alert(
-        'Registration Successful!', 
-        'Your account has been created successfully. Please wait for admin approval before you can access the app.',
-        [{ text: 'OK', onPress: onRegisterSuccess }]
-      );
+      // Show email confirmation modal
+      setShowEmailModal(true);
     } catch (error: any) {
       console.error('Registration error:', error);
       Alert.alert('Registration Failed', error.message || 'An error occurred during registration');
-    } finally {
       setLoading(false);
     }
   };
@@ -166,7 +164,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
             <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Email Address"
+              placeholder="Email"
               value={formData.email}
               onChangeText={(value) => handleInputChange('email', value)}
               keyboardType="email-address"
@@ -257,6 +255,40 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
           </View>
         </View>
       </ScrollView>
+
+      {/* Email Confirmation Modal */}
+      <Modal
+        visible={showEmailModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowEmailModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="mail-outline" size={64} color="#0ea5e9" />
+            </View>
+            <Text style={styles.modalTitle}>Check Your Email</Text>
+            <Text style={styles.modalMessage}>
+              We've sent a confirmation email to{'\n'}
+              <Text style={styles.modalEmail}>{formData.email}</Text>
+            </Text>
+            <Text style={styles.modalSubtext}>
+              Please check your inbox and click the confirmation link to verify your email address.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowEmailModal(false);
+                setLoading(false);
+                onRegisterSuccess();
+              }}
+            >
+              <Text style={styles.modalButtonText}>Got It</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -385,6 +417,68 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#0ea5e9',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 30,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f0f9ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  modalEmail: {
+    fontWeight: '600',
+    color: '#0ea5e9',
+  },
+  modalSubtext: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButton: {
+    backgroundColor: '#0ea5e9',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

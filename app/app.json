@@ -27,7 +27,12 @@
           "fetch",
           "remote-notification"
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["com.Scheme.app"]
+          }
+        ]
       }
     },
     "android": {
@@ -43,8 +48,21 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.Scheme.app"
+      "package": "com.Scheme.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "com.Scheme.app"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
+    "scheme": "com.Scheme.app",
     "web": {
       "favicon": "./assets/favicon.png"
     },
