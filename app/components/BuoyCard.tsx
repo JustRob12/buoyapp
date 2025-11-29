@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   buoySection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   buoyContainer: {
     alignItems: 'center',
@@ -266,17 +266,14 @@ const styles = StyleSheet.create({
   sensorGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 32,
     gap: 8,
   },
   sensorCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   sensorIconContainer: {
     width: 48,
