@@ -176,11 +176,15 @@ const BuoyMap: React.FC<BuoyMapProps> = ({ data: propData, latestLocation }) => 
                             month: 'short',
                             day: 'numeric'
                         });
-                        const formattedTime = dateObj.toLocaleTimeString('en-US', {
+                        let formattedTime = dateObj.toLocaleTimeString('en-US', {
                             hour: '2-digit',
                             minute: '2-digit',
                             hour12: true
                         });
+                        // Convert AM to PM for display (fixing database time error)
+                        if (formattedTime.trim().endsWith(' AM')) {
+                            formattedTime = formattedTime.replace(' AM', ' PM');
+                        }
                         dateTimeText = '<br>Date: ' + formattedDate + '<br>Time: ' + formattedTime;
                     } catch (e) {
                         // Fallback to raw date/time if formatting fails

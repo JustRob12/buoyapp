@@ -841,6 +841,205 @@ const GraphScreen = () => {
 
       setDownloadProgress('Generating PDF...');
 
+      // Generate narrative report about GPS movements
+      const generateGPSMovementNarrative = (data: BuoyData[]): string => {
+        if (!data || data.length === 0) {
+          return 'Insufficient GPS data available to analyze location behavior.';
+        }
+
+        // Track the buoy's movement over time (recorded every 10 minutes)
+        const positions: Array<{ lat: number; lng: number; timestamp: number }> = [];
+        
+        data.forEach(item => {
+          const lat = parseFloat(item.Latitude) || 0;
+          const lng = parseFloat(item.Longitude) || 0;
+          
+          if (lat !== 0 && lng !== 0) {
+            try {
+              const timestamp = new Date(`${item.Date} ${item.Time}`).getTime();
+              if (!isNaN(timestamp)) {
+                positions.push({ lat, lng, timestamp });
+              }
+            } catch (e) {
+              // Skip invalid dates
+            }
+          }
+        });
+
+        if (positions.length === 0) {
+          return 'No valid GPS movement data available for analysis.';
+        }
+
+        // Sort by timestamp to track movement chronologically
+        positions.sort((a, b) => a.timestamp - b.timestamp);
+
+        // Calculate distance between two points using Haversine formula
+        const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+          const toRad = (deg: number) => (deg * Math.PI) / 180;
+          const R = 6371000; // Earth radius in meters
+          const dLat = toRad(lat2 - lat1);
+          const dLng = toRad(lng2 - lng1);
+          const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          return R * c;
+        };
+
+        // Calculate bearing (direction) between two points in degrees
+        const calculateBearing = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+          const toRad = (deg: number) => (deg * Math.PI) / 180;
+          const toDeg = (rad: number) => (rad * 180) / Math.PI;
+          
+          const dLng = toRad(lng2 - lng1);
+          const lat1Rad = toRad(lat1);
+          const lat2Rad = toRad(lat2);
+          
+          const y = Math.sin(dLng) * Math.cos(lat2Rad);
+          const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+          
+          let bearing = toDeg(Math.atan2(y, x));
+          bearing = (bearing + 360) % 360; // Normalize to 0-360
+          
+          return bearing;
+        };
+
+        // Convert bearing to cardinal direction
+        const bearingToDirection = (bearing: number): string => {
+          const directions = ['North', 'Northeast', 'East', 'Southeast', 'South', 'Southwest', 'West', 'Northwest'];
+          const index = Math.round(bearing / 45) % 8;
+          return directions[index];
+        };
+
+        // Analyze movement patterns - track cumulative distance, maximum displacement, and direction
+        let totalDistance = 0;
+        let maxDistance = 0;
+        const distances: number[] = [];
+        const bearings: number[] = [];
+        
+        for (let i = 1; i < positions.length; i++) {
+          const distance = calculateDistance(
+            positions[i - 1].lat,
+            positions[i - 1].lng,
+            positions[i].lat,
+            positions[i].lng
+          );
+          const bearing = calculateBearing(
+            positions[i - 1].lat,
+            positions[i - 1].lng,
+            positions[i].lat,
+            positions[i].lng
+          );
+          
+          distances.push(distance);
+          bearings.push(bearing);
+          totalDistance += distance;
+          maxDistance = Math.max(maxDistance, distance);
+        }
+
+        // Calculate overall direction (from start to end position)
+        let overallDirection = '';
+        let overallBearing = 0;
+        if (positions.length > 1) {
+          overallBearing = calculateBearing(
+            positions[0].lat,
+            positions[0].lng,
+            positions[positions.length - 1].lat,
+            positions[positions.length - 1].lng
+          );
+          overallDirection = bearingToDirection(overallBearing);
+        }
+
+        // Calculate average direction (circular mean of bearings)
+        const calculateAverageBearing = (bearings: number[]): number => {
+          if (bearings.length === 0) return 0;
+          
+          let sinSum = 0;
+          let cosSum = 0;
+          
+          bearings.forEach(bearing => {
+            const rad = (bearing * Math.PI) / 180;
+            sinSum += Math.sin(rad);
+            cosSum += Math.cos(rad);
+          });
+          
+          const avgRad = Math.atan2(sinSum / bearings.length, cosSum / bearings.length);
+          let avgDeg = (avgRad * 180) / Math.PI;
+          avgDeg = (avgDeg + 360) % 360;
+          
+          return avgDeg;
+        };
+
+        const avgBearing = bearings.length > 0 ? calculateAverageBearing(bearings) : 0;
+        const avgDirection = bearings.length > 0 ? bearingToDirection(avgBearing) : '';
+
+        // Calculate average distance between 10-minute intervals
+        const avgDistancePerInterval = distances.length > 0 ? totalDistance / distances.length : 0;
+        const totalTrackingPoints = positions.length;
+        
+        // Generate narrative based on analysis
+        let narrative = 'Based on GPS movement analysis, the buoy\'s position has been tracked every 10 minutes throughout the monitoring period. ';
+        
+        if (totalDistance < 50) {
+          narrative += 'The buoy has remained relatively stationary, indicating a stable deployment position with minimal drift. ';
+        } else if (totalDistance < 500) {
+          narrative += 'The buoy has shown moderate movement patterns, likely influenced by natural water currents and tidal patterns. ';
+        } else {
+          narrative += 'The buoy has exhibited significant movement patterns, suggesting it may be subject to water currents, wind forces, or intentional repositioning. ';
+        }
+        
+        if (maxDistance > 1000) {
+          narrative += `The maximum displacement observed between consecutive 10-minute intervals was approximately ${(maxDistance / 1000).toFixed(1)} kilometers. `;
+        } else if (maxDistance > 100) {
+          narrative += `The maximum displacement observed between consecutive 10-minute intervals was approximately ${Math.round(maxDistance)} meters. `;
+        } else {
+          narrative += `Movement between 10-minute intervals was generally minimal, with displacements under 100 meters. `;
+        }
+        
+        narrative += `The total cumulative movement distance tracked over ${totalTrackingPoints} data points is approximately ${(totalDistance / 1000).toFixed(2)} kilometers, with an average movement of ${(avgDistancePerInterval).toFixed(1)} meters per 10-minute interval. `
+        
+        // Add direction summary
+        if (positions.length > 1 && totalDistance > 10) {
+          const formatDirection = (dir: string): string => {
+            const dirLower = dir.toLowerCase();
+            // Handle compound directions (northeast, southwest, etc.)
+            if (dirLower.includes('north') && dirLower.includes('east')) return 'northeast';
+            if (dirLower.includes('north') && dirLower.includes('west')) return 'northwest';
+            if (dirLower.includes('south') && dirLower.includes('east')) return 'southeast';
+            if (dirLower.includes('south') && dirLower.includes('west')) return 'southwest';
+            // Handle cardinal directions
+            if (dirLower === 'north') return 'north';
+            if (dirLower === 'south') return 'south';
+            if (dirLower === 'east') return 'east';
+            if (dirLower === 'west') return 'west';
+            return dirLower;
+          };
+
+          const formattedOverall = formatDirection(overallDirection);
+          const formattedAvg = formatDirection(avgDirection);
+
+          if (overallDirection && avgDirection) {
+            if (overallDirection === avgDirection) {
+              narrative += `Direction Summary: The buoy's movement shows a consistent ${formattedOverall}ward trend throughout the monitoring period. The overall net displacement from the starting position to the final position is in a ${formattedOverall}ward direction. `;
+            } else {
+              narrative += `Direction Summary: The buoy's movement shows an average ${formattedAvg}ward trend during tracking intervals, while the overall net displacement from start to end position is in a ${formattedOverall}ward direction. `;
+            }
+          } else if (overallDirection) {
+            narrative += `Direction Summary: The overall net displacement of the buoy from its starting position to its final position is in a ${formattedOverall}ward direction. `;
+          }
+        }
+        
+        if (maxDistance < 50) {
+          narrative += 'These movement patterns suggest the buoy is well-anchored and maintaining its designated monitoring position, which is ideal for consistent water quality data collection.';
+        } else if (maxDistance < 500) {
+          narrative += 'The observed movements are within acceptable ranges for floating monitoring systems, likely influenced by natural water currents and tidal patterns while maintaining overall positional stability.';
+        } else {
+          narrative += 'The significant movements observed may indicate strong current conditions, potential anchor issues, or intentional repositioning, which should be considered when analyzing spatial variations in water quality parameters.';
+        }
+
+        return narrative;
+      };
+
       // Generate HTML with images on-the-fly (don't store in memory)
       const generateHtml = async (): Promise<string> => {
         // Check for cancellation
@@ -935,6 +1134,10 @@ const GraphScreen = () => {
               lineImgHtml = getImageHtml(lineBase64, 'Line Chart');
             }
             
+            // Generate GPS movement narrative for this month's data
+            const monthData = dataByMonth.get(monthKey) || [];
+            const monthGPSNarrative = generateGPSMovementNarrative(monthData);
+            
             return `
             <div class="page">
               <div class="page-header">${headerImg}</div>
@@ -961,8 +1164,16 @@ const GraphScreen = () => {
             <div class="page">
               <div class="content-container">
                 <h3>Line Graph - ${monthKey}</h3>
-                <p style="font-size:9pt;color:#64748b;margin-bottom:15px;">TDS, pH, and Temperature trends over time for ${monthKey} (${dataByMonth.get(monthKey)?.length || 0} records)</p>
+                <p style="font-size:9pt;color:#64748b;margin-bottom:15px;">TDS, pH, and Temperature trends over time for ${monthKey} (${monthData.length} records)</p>
                 <div class="chart-wrapper">${lineImgHtml}</div>
+              </div>
+            </div>
+            <div class="page">
+              <div class="content-container">
+                <h3>GPS Movement Analysis - ${monthKey}</h3>
+                <p style="font-size:10pt;color:#1f2937;margin-bottom:15px;text-align:justify;line-height:1.6;">
+                  ${monthGPSNarrative}
+                </p>
               </div>
             </div>
             `;

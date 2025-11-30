@@ -32,19 +32,30 @@ const BuoyCard: React.FC<BuoyCardProps> = ({ data }) => {
     } as never);
   };
 
+  // Helper function to convert AM to PM for display (fixing database time error)
+  const convertAMtoPM = (timeString: string): string => {
+    // If time ends with " AM", replace it with " PM"
+    if (timeString.trim().endsWith(' AM')) {
+      return timeString.replace(' AM', ' PM');
+    }
+    return timeString;
+  };
+
   const formatDateTime = (date: string, time: string) => {
     const dateObj = new Date(`${date} ${time}`);
+    const formattedTime = dateObj.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    
     return {
       date: dateObj.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       }),
-      time: dateObj.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
+      time: convertAMtoPM(formattedTime)
     };
   };
 

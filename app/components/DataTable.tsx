@@ -240,11 +240,16 @@ const DataTable: React.FC<DataTableProps> = ({
         day: 'numeric'
       });
       
-      const formattedTime = dateObj.toLocaleTimeString('en-US', {
+      let formattedTime = dateObj.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: true
       });
+      
+      // Convert AM to PM for display (fixing database time error)
+      if (formattedTime.trim().endsWith(' AM')) {
+        formattedTime = formattedTime.replace(' AM', ' PM');
+      }
       
       console.log('✅ Formatted result:', { formattedDate, formattedTime });
       
