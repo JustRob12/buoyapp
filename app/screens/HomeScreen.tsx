@@ -7,8 +7,12 @@ import {
   Dimensions,
   SafeAreaView,
   Animated,
+  Modal,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface HomeScreenProps {
   onNavigateToLogin: () => void;
@@ -16,6 +20,8 @@ interface HomeScreenProps {
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToLogin, onNavigateToRegister }) => {
+  const TERMS_KEY = 'aquanet_terms_v1';
+
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const isSmallScreen = screenHeight < 700;
 
@@ -44,6 +50,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToLogin, onNavigateTo
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean | null>(null);
+  const [isTermsChecked, setIsTermsChecked] = useState(false);
+
+  useEffect(() => {
+    const loadTermsStatus = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(TERMS_KEY);
+        const accepted = stored === 'true';
+        setHasAcceptedTerms(accepted);
+      } catch (error) {
+        console.warn('Failed to load terms acceptance status', error);
+        setHasAcceptedTerms(false);
+      }
+    };
+
+    loadTermsStatus();
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -81,6 +104,34 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToLogin, onNavigateTo
 
     return () => clearInterval(interval);
   }, [fadeAnim, scaleAnim]);
+
+  const handleAcceptTerms = async () => {
+    try {
+      await AsyncStorage.setItem(TERMS_KEY, 'true');
+      // Verify the value was saved
+      const verified = await AsyncStorage.getItem(TERMS_KEY);
+      if (verified === 'true') {
+        setHasAcceptedTerms(true);
+      } else {
+        console.warn('Terms acceptance verification failed');
+        // Still set to true to prevent blocking the user
+        setHasAcceptedTerms(true);
+      }
+    } catch (error) {
+      console.error('Failed to save terms acceptance status', error);
+      // Still set to true to prevent blocking the user
+      setHasAcceptedTerms(true);
+    }
+  };
+
+  if (hasAcceptedTerms === null) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0ea5e9" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,6 +218,76 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToLogin, onNavigateTo
           </View>
         </View>
       </View>
+
+      {/* Terms & Privacy Agreement Modal */}
+      <Modal visible={!hasAcceptedTerms} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Terms of Use & Privacy</Text>
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <Text style={styles.modalText}>
+                  This account will be used to access the AquaNet Marine Monitoring System. By
+                  continuing, you acknowledge and agree that:
+                </Text>
+                <Text style={styles.modalBullet}>
+                  • Your account information (name, email, organization and role) will be stored
+                  securely and used to identify you in the system.
+                </Text>
+                <Text style={styles.modalBullet}>
+                  • Your usage activity (logins, configuration changes, and data exports) may be
+                  recorded for security, audit, and research quality assurance.
+                </Text>
+                <Text style={styles.modalBullet}>
+                  • Any data you upload or annotate in AquaNet may be used by authorized admins and
+                  collaborators for monitoring, analysis, and reporting in line with your project or
+                  institution guidelines.
+                </Text>
+                <Text style={styles.modalBullet}>
+                  • You agree to keep your login credentials confidential and not share access with
+                  unauthorized users.
+                </Text>
+                <Text style={styles.modalBullet}>
+                  • Misuse of the platform, attempts to tamper with data, or unauthorized access to
+                  other users&apos; information is strictly prohibited and may result in account
+                  suspension.
+                </Text>
+                <Text style={styles.modalText}>
+                  If you do not agree with these terms, please close the app or contact an
+                  administrator before continuing.
+                </Text>
+              </ScrollView>
+
+              <View style={styles.checkboxRow}>
+                <TouchableOpacity
+                  onPress={() => setIsTermsChecked((prev) => !prev)}
+                  style={styles.checkboxTouchable}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.checkbox, isTermsChecked && styles.checkboxChecked]}>
+                    {isTermsChecked && (
+                      <Ionicons name="checkmark" size={14} color="#ffffff" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.checkboxLabel}>
+                  I have read and agree to the Terms of Use & Privacy statement.
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalPrimaryButton,
+                  !isTermsChecked && styles.modalPrimaryButtonDisabled,
+                ]}
+                disabled={!isTermsChecked}
+                onPress={handleAcceptTerms}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalPrimaryButtonText}>I Agree and Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
     </SafeAreaView>
   );
 };
@@ -406,6 +527,104 @@ const styles = StyleSheet.create({
     color: '#1e40af',
     lineHeight: 16,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalScroll: {
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  modalText: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  modalBullet: {
+    fontSize: 13,
+    color: '#1f2937',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkboxTouchable: {
+    marginRight: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#0ea5e9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#0ea5e9',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 12,
+    color: '#0f172a',
+    lineHeight: 18,
+  },
+  modalPrimaryButton: {
+    backgroundColor: '#0ea5e9',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalPrimaryButtonDisabled: {
+    backgroundColor: '#bae6fd',
+  },
+  modalPrimaryButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 

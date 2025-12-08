@@ -15,6 +15,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/authService';
 
 interface RegisterScreenProps {
@@ -24,6 +25,7 @@ interface RegisterScreenProps {
 }
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNavigateToLogin, onNavigateToHome }) => {
+  const TERMS_KEY = 'aquanet_terms_v1';
   const [formData, setFormData] = useState({
     fullname: '',
     email: '',
@@ -34,6 +36,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [isTermsChecked, setIsTermsChecked] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const isSmallScreen = screenHeight < 700;
@@ -74,6 +78,24 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
     }));
   };
 
+  const handleTermsCheck = async () => {
+    const newValue = !isTermsChecked;
+    setIsTermsChecked(newValue);
+    
+    if (newValue) {
+      // Save to AsyncStorage when checked
+      try {
+        await AsyncStorage.setItem(TERMS_KEY, 'true');
+        const verified = await AsyncStorage.getItem(TERMS_KEY);
+        if (verified !== 'true') {
+          console.warn('Terms acceptance verification failed');
+        }
+      } catch (error) {
+        console.error('Failed to save terms acceptance status', error);
+      }
+    }
+  };
+
   const handleRegister = async () => {
     const { fullname, email, password, confirmPassword } = formData;
 
@@ -107,6 +129,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
 
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (!isTermsChecked) {
+      Alert.alert('Agreement Required', 'Please accept the Terms of Use & Privacy to continue');
       return;
     }
 
@@ -270,10 +297,39 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
               </Text>
             </View>
 
+            {/* Terms Agreement Checkbox */}
+            <View style={styles.termsContainer}>
+              <TouchableOpacity
+                onPress={handleTermsCheck}
+                style={styles.checkboxTouchable}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkbox, isTermsChecked && styles.checkboxChecked]}>
+                  {isTermsChecked && (
+                    <Ionicons name="checkmark" size={14} color="#ffffff" />
+                  )}
+                </View>
+              </TouchableOpacity>
+              <View style={styles.termsTextContainer}>
+                <Text style={styles.termsText}>
+                  I agree to the{' '}
+                  <Text 
+                    style={styles.termsLink}
+                    onPress={() => setShowTermsModal(true)}
+                  >
+                    Terms of Use & Privacy
+                  </Text>
+                </Text>
+              </View>
+            </View>
+
             <TouchableOpacity
-              style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+              style={[
+                styles.registerButton, 
+                (loading || !isTermsChecked) && styles.registerButtonDisabled
+              ]}
               onPress={handleRegister}
-              disabled={loading}
+              disabled={loading || !isTermsChecked}
               activeOpacity={0.85}
             >
               {loading ? (
@@ -326,6 +382,62 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegisterSuccess, onNa
               activeOpacity={0.85}
             >
               <Text style={styles.modalButtonText}>Got It</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Terms & Privacy Agreement Modal */}
+      <Modal visible={showTermsModal} transparent animationType="fade" onRequestClose={() => setShowTermsModal(false)}>
+        <View style={styles.termsModalOverlay}>
+          <View style={styles.termsModalCard}>
+            <View style={styles.termsModalHeader}>
+              <Text style={styles.termsModalTitle}>Terms of Use & Privacy</Text>
+              <TouchableOpacity
+                onPress={() => setShowTermsModal(false)}
+                style={styles.termsModalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.termsModalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.termsModalText}>
+                This account will be used to access the AquaNet Marine Monitoring System. By
+                continuing, you acknowledge and agree that:
+              </Text>
+              <Text style={styles.termsModalBullet}>
+                • Your account information (name, email, organization and role) will be stored
+                securely and used to identify you in the system.
+              </Text>
+              <Text style={styles.termsModalBullet}>
+                • Your usage activity (logins, configuration changes, and data exports) may be
+                recorded for security, audit, and research quality assurance.
+              </Text>
+              <Text style={styles.termsModalBullet}>
+                • Any data you upload or annotate in AquaNet may be used by authorized admins and
+                collaborators for monitoring, analysis, and reporting in line with your project or
+                institution guidelines.
+              </Text>
+              <Text style={styles.termsModalBullet}>
+                • You agree to keep your login credentials confidential and not share access with
+                unauthorized users.
+              </Text>
+              <Text style={styles.termsModalBullet}>
+                • Misuse of the platform, attempts to tamper with data, or unauthorized access to
+                other users&apos; information is strictly prohibited and may result in account
+                suspension.
+              </Text>
+              <Text style={styles.termsModalText}>
+                If you do not agree with these terms, please close the app or contact an
+                administrator before continuing.
+              </Text>
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.termsModalCloseButtonBottom}
+              onPress={() => setShowTermsModal(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.termsModalCloseButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -686,6 +798,106 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  checkboxTouchable: {
+    marginRight: 10,
+    marginTop: 2,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#0ea5e9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#0ea5e9',
+  },
+  termsTextContainer: {
+    flex: 1,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: '#0ea5e9',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  termsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  termsModalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  termsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  termsModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+    flex: 1,
+  },
+  termsModalCloseButton: {
+    padding: 4,
+  },
+  termsModalScroll: {
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  termsModalText: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  termsModalBullet: {
+    fontSize: 13,
+    color: '#1f2937',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  termsModalCloseButtonBottom: {
+    backgroundColor: '#0ea5e9',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termsModalCloseButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 
